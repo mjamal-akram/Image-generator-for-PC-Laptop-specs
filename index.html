@@ -1,0 +1,45 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PC/Laptop Poster Builder</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="title-tabs">
+        <h1 id="appTitle">PC/Laptop Poster Builder</h1>
+        <div class="generator-tabs" id="generatorTabs">
+          <button id="tabDevice" class="tab-btn active" type="button">PC/Laptop</button>
+          <button id="tabCharger" class="tab-btn" type="button">Charger</button>
+        </div>
+      </div>
+      <div class="topbar-controls">
+        <div class="theme-group">
+          <button id="themeLightBtn" class="theme-btn active" type="button" aria-label="Light Theme" title="Light Theme">☀</button>
+          <button id="themeDarkBtn" class="theme-btn" type="button" aria-label="Dark Theme" title="Dark Theme">🌙</button>
+        </div>
+        <div class="lang-group">
+        <button class="lang-btn active" data-lang="en" title="English" aria-label="English">🇺🇸</button>
+        <button class="lang-btn" data-lang="fr" title="Francais" aria-label="Francais">🇫🇷</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-grid">
+      <section class="preview-panel">
+        <canvas id="posterCanvas" width="1080" height="1080"></canvas>
+        <div class="preview-actions">
+          <button id="btnGeneratePng" class="primary">Generate PNG</button>
+          <button id="btnGenerateJpg">Generate JPG</button>
+        </div>
+        <p id="statusText" class="status"></p>
+      </section>
+
+      <section class="controls-panel" id="controlsPanel"></section>
+    </main>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
