@@ -1,36 +1,13 @@
 {
-  "name": "prohitech-image-generator",
+  "name": "pc-spec-poster-desktop",
   "version": "1.0.0",
   "description": "Desktop app for generating PC/Laptop spec posters in English and French",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "build:portable": "electron-builder --win portable"
-  },
-  "build": {
-    "appId": "com.prohitech.imagegenerator",
-    "productName": "prohitech image generator",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer.js",
-      "index.html",
-      "styles.css",
-      "assets/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        "portable"
-      ]
-    }
+    "dev": "nodemon main.js"
   },
   "devDependencies": {
     "electron": "^31.7.7",
-    "electron-builder": "^24.13.3",
     "nodemon": "^3.1.14"
   }
 }
