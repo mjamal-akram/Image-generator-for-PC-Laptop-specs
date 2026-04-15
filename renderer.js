@@ -8,6 +8,7 @@
   spec: { x: -20, y: -98 },
   brand: { x: 394, y: -884 },
   price: { x: 6, y: -202 },
+  contact: { x: 0, y: 0 },
   chargerCompatibility: { x: 0, y: 0 },
 };
 
@@ -125,10 +126,12 @@ function resetLayoutToDefault() {
   state.sectionEnabled.os = true;
   state.sectionEnabled.storage = true;
   state.sectionEnabled.processor = true;
+  state.sectionEnabled.screen = true;
   state.sectionEnabled.specifications = true;
   state.sectionEnabled.battery = true;
   state.sectionEnabled.guarantee = true;
   state.sectionEnabled.price = true;
+  state.sectionEnabled.contact = true;
   state.sectionEnabled.badges = true;
   state.showIntelBadge = true;
   state.showScreenBadge = true;
@@ -179,6 +182,7 @@ const state = {
       rows: [],
     },
   ],
+  contactItems: [],
   chargerTitle: 'FAST CHARGER',
   chargerType: 'USB-C Charger',
   chargerPower: '65W',
@@ -240,10 +244,12 @@ const state = {
     storage: true,
     brand: true,
     processor: true,
+    screen: true,
     specifications: true,
     battery: true,
     guarantee: true,
     price: true,
+    contact: true,
     badges: true,
   },
 };
@@ -276,6 +282,7 @@ const i18n = {
       specifications: 'Specifications',
       guarantee: 'Guarantee',
       price: 'Price',
+      contact: 'Contact',
       badges: 'Badge Visibility',
     },
     labels: {
@@ -336,6 +343,14 @@ const i18n = {
       price: 'Price',
       currency: 'Currency',
       priceHint: 'Typeable value (example: 450 USD)',
+      contactType: 'Contact Type',
+      contactValue: 'Contact Text',
+      contactValueHint: 'Example: +1 234 567 890',
+      addContactRow: 'Add Contact Field',
+      removeContactRow: 'Remove Field',
+      contactPhone: 'Phone',
+      contactEmail: 'Email',
+      contactAddress: 'Address',
       uploadImage: 'Upload PC/Laptop Image',
       uploadChargerImage: 'Upload Charger Image',
       clearChargerImage: 'Remove Charger Image',
@@ -431,6 +446,7 @@ const i18n = {
       specifications: 'Caracteristiques',
       guarantee: 'Garantie',
       price: 'Prix',
+      contact: 'Contact',
       badges: 'Visibilite Des Badges',
     },
     labels: {
@@ -491,6 +507,14 @@ const i18n = {
       price: 'Prix',
       currency: 'Devise',
       priceHint: 'Valeur a saisir (exemple: 450 EUR)',
+      contactType: 'Type De Contact',
+      contactValue: 'Texte Contact',
+      contactValueHint: 'Exemple: +33 1 23 45 67 89',
+      addContactRow: 'Ajouter Champ Contact',
+      removeContactRow: 'Supprimer Champ',
+      contactPhone: 'Telephone',
+      contactEmail: 'Email',
+      contactAddress: 'Adresse',
       uploadImage: 'Telecharger Image PC/Portable',
       uploadChargerImage: 'Telecharger Image Chargeur',
       clearChargerImage: 'Supprimer Image Chargeur',
@@ -616,7 +640,7 @@ const themePalettes = {
     batteryBadge: '#27ae60',
     logoBadge: '#3a82df',
     brand: '#1f293b',
-    priceBox: '#08142f',
+    priceBox: '#ff0050',
     priceText: '#ffffff',
     specOuter: '#ffffff',
     specInnerA: '#0d204b',
@@ -658,7 +682,7 @@ const themePalettes = {
     batteryBadge: '#27ae60',
     logoBadge: '#7f93ab',
     brand: '#2b3647',
-    priceBox: '#445166',
+    priceBox: '#ff0050',
     priceText: '#ffffff',
     specOuter: '#edf1f6',
     specInnerA: '#43536a',
@@ -700,7 +724,7 @@ const themePalettes = {
     batteryBadge: '#27ae60',
     logoBadge: '#ff5c44',
     brand: '#3a2025',
-    priceBox: '#2d0d16',
+    priceBox: '#ff0050',
     priceText: '#fff2f2',
     specOuter: '#fff1ea',
     specInnerA: '#3a0f24',
@@ -875,6 +899,7 @@ function snapshotForUndo() {
     selectedChargerImageId: state.selectedChargerImageId,
     customTexts: snapshotCustomTexts,
     specCards: JSON.parse(JSON.stringify(state.specCards || [])),
+    contactItems: JSON.parse(JSON.stringify(state.contactItems || [])),
     chargerTitle: state.chargerTitle,
     guaranteeText: state.guaranteeText,
     guaranteePeriod: state.guaranteePeriod,
@@ -920,6 +945,7 @@ function restoreFromUndoSnapshot(snapshot) {
   state.showChargerCompatibilityBadge = !!snapshot.showChargerCompatibilityBadge;
   state.brand = snapshot.brand ?? state.brand;
   state.specCards = JSON.parse(JSON.stringify(snapshot.specCards || state.specCards || []));
+  state.contactItems = JSON.parse(JSON.stringify(snapshot.contactItems || state.contactItems || []));
   state.chargerTitle = snapshot.chargerTitle ?? state.chargerTitle;
   state.guaranteeText = snapshot.guaranteeText ?? state.guaranteeText;
   state.guaranteePeriod = snapshot.guaranteePeriod ?? state.guaranteePeriod;
@@ -1948,6 +1974,85 @@ function buildPriceSection() {
   return section;
 }
 
+function buildContactSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.contact;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const items = Array.isArray(state.contactItems) ? state.contactItems : [];
+  const typeOptions = [
+    ['phone', t().labels.contactPhone],
+    ['email', t().labels.contactEmail],
+    ['address', t().labels.contactAddress],
+  ];
+
+  items.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '130px 1fr auto';
+    row.style.gap = '8px';
+    row.style.alignItems = 'center';
+
+    const typeSelect = document.createElement('select');
+    typeOptions.forEach(([value, label]) => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      opt.selected = item.type === value;
+      typeSelect.appendChild(opt);
+    });
+    typeSelect.addEventListener('change', (e) => {
+      state.contactItems[idx].type = e.target.value;
+      drawPoster();
+    });
+
+    const valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.value = item.value || '';
+    valueInput.placeholder = t().labels.contactValueHint;
+    valueInput.addEventListener('input', (e) => {
+      state.contactItems[idx].value = e.target.value;
+      drawPoster();
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.textContent = t().labels.removeContactRow;
+    removeBtn.addEventListener('click', () => {
+      state.contactItems.splice(idx, 1);
+      renderControls();
+      drawPoster();
+    });
+
+    row.appendChild(typeSelect);
+    row.appendChild(valueInput);
+    row.appendChild(removeBtn);
+    wrap.appendChild(row);
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.textContent = t().labels.addContactRow;
+  addBtn.addEventListener('click', () => {
+    if (!Array.isArray(state.contactItems)) {
+      state.contactItems = [];
+    }
+    state.contactItems.push({ type: 'phone', value: '' });
+    renderControls();
+    drawPoster();
+  });
+  wrap.appendChild(addBtn);
+
+  section.appendChild(wrap);
+  return section;
+}
+
 function buildTilePlusInputSection(title, key, values, inputLabel, placeholder = '') {
   const section = document.createElement('section');
   section.className = 'section';
@@ -2397,7 +2502,6 @@ function buildBadgesSection() {
   [
     ['showLogoBadge', t().labels.showLogoBadge],
     ['showIntelBadge', t().labels.showIntelBadge],
-    ['showScreenBadge', t().labels.screenSize],
     ['showBatteryBadge', t().labels.showBatteryBadge],
     ['showGuaranteeBadge', t().labels.showGuaranteeBadge],
   ].forEach(([key, label]) => {
@@ -2421,33 +2525,39 @@ function buildBadgesSection() {
     wrap.appendChild(row);
   });
 
-  const usbLabel = document.createElement('label');
-  usbLabel.textContent = t().labels.usbSpec;
-  wrap.appendChild(usbLabel);
+  section.appendChild(wrap);
+  return section;
+}
 
-  const usbInput = document.createElement('input');
-  usbInput.type = 'text';
-  usbInput.value = state.usbSpec;
-  usbInput.placeholder = t().labels.usbSpecHint;
-  usbInput.addEventListener('input', (e) => {
-    state.usbSpec = e.target.value;
+function buildScreenSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().labels.screenSize;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const visibleRow = document.createElement('label');
+  visibleRow.style.display = 'flex';
+  visibleRow.style.alignItems = 'center';
+  visibleRow.style.gap = '8px';
+
+  const visibleInput = document.createElement('input');
+  visibleInput.type = 'checkbox';
+  visibleInput.checked = !!state.showScreenBadge;
+  visibleInput.addEventListener('change', (e) => {
+    state.showScreenBadge = e.target.checked;
     drawPoster();
   });
-  wrap.appendChild(usbInput);
 
-  const wifiLabel = document.createElement('label');
-  wifiLabel.textContent = t().labels.wifiSpec;
-  wrap.appendChild(wifiLabel);
-
-  const wifiInput = document.createElement('input');
-  wifiInput.type = 'text';
-  wifiInput.value = state.wifiSpec;
-  wifiInput.placeholder = t().labels.wifiSpecHint;
-  wifiInput.addEventListener('input', (e) => {
-    state.wifiSpec = e.target.value;
-    drawPoster();
-  });
-  wrap.appendChild(wifiInput);
+  const visibleText = document.createElement('span');
+  visibleText.textContent = state.lang === 'fr' ? 'Afficher Badge Ecran' : 'Show Screen Badge';
+  visibleRow.appendChild(visibleInput);
+  visibleRow.appendChild(visibleText);
+  wrap.appendChild(visibleRow);
 
   const screenLabel = document.createElement('label');
   screenLabel.textContent = t().labels.screenSize;
@@ -2762,49 +2872,43 @@ function renderControls() {
   controlsPanel.appendChild(
     buildTileSection(labels.sections.theme, 'theme', options.theme, (value) => labels.themeNames[value] || value)
   );
-  controlsPanel.appendChild(applySectionToggle(buildTileSection(labels.sections.type, 'type', options.type), 'type'));
-  controlsPanel.appendChild(applySectionToggle(buildDeviceImageSection(), 'image'));
-  controlsPanel.appendChild(applySectionToggle(buildLogoSection(), 'logo'));
+  controlsPanel.appendChild(applySectionToggle(buildTitleBadgeSection(), 'titleBadge'));
   controlsPanel.appendChild(
     applySectionToggle(
       buildTilePlusInputSection(labels.sections.os, 'os', options.os, labels.labels.osCustom, labels.labels.osHint),
       'os'
     )
   );
-  controlsPanel.appendChild(applySectionToggle(buildRamSection(), 'ram'));
   controlsPanel.appendChild(
-    applySectionToggle(
-      buildTileSection(
-        labels.sections.keyboard,
-        'keyboardBacklight',
-        options.keyboardBacklight,
-        (value) => labels.keyboardBacklightValues[value] || value
-      ),
-      'keyboard'
-    )
+    applySectionToggle(buildGuaranteeSection(), 'guarantee')
   );
-  controlsPanel.appendChild(applySectionToggle(buildTitleBadgeSection(), 'titleBadge'));
-  controlsPanel.appendChild(applySectionToggle(buildStorageSection(), 'storage'));
   controlsPanel.appendChild(
     applySectionToggle(
       buildProcessorSection(),
       'processor'
     )
   );
-  controlsPanel.appendChild(
-    applySectionToggle(buildSpecificationsSection(), 'specifications')
-  );
+  controlsPanel.appendChild(applySectionToggle(buildScreenSection(), 'screen'));
   controlsPanel.appendChild(
     applySectionToggle(buildBatterySection(), 'battery')
   );
+  controlsPanel.appendChild(applySectionToggle(buildStorageSection(), 'storage'));
+  controlsPanel.appendChild(applySectionToggle(buildRamSection(), 'ram'));
   controlsPanel.appendChild(
-    applySectionToggle(buildGuaranteeSection(), 'guarantee')
+    applySectionToggle(buildSpecificationsSection(), 'specifications')
   );
+  controlsPanel.appendChild(applySectionToggle(buildDeviceImageSection(), 'image'));
+  controlsPanel.appendChild(applySectionToggle(buildLogoSection(), 'logo'));
+  controlsPanel.appendChild(buildColorsSection());
+
+  controlsPanel.appendChild(applySectionToggle(buildTileSection(labels.sections.type, 'type', options.type), 'type'));
   controlsPanel.appendChild(
     applySectionToggle(buildPriceSection(), 'price')
   );
+  controlsPanel.appendChild(
+    applySectionToggle(buildContactSection(), 'contact')
+  );
   controlsPanel.appendChild(applySectionToggle(buildBadgesSection(), 'badges'));
-  controlsPanel.appendChild(buildColorsSection());
 }
 
 function drawRoundedRect(x, y, w, h, r, fill, stroke = null) {
@@ -2930,6 +3034,51 @@ function drawImageContain(img, x, y, w, h) {
     dx = x + (w - drawW) / 2;
   }
   ctx.drawImage(img, dx, dy, drawW, drawH);
+}
+
+function drawBurstShape(cx, cy, outerRadius, innerRadius, points, fillStyle) {
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i += 1) {
+    const angle = (-Math.PI / 2) + (i * Math.PI) / points;
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const px = cx + Math.cos(angle) * radius;
+    const py = cy + Math.sin(angle) * radius;
+    if (i === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.closePath();
+  ctx.fillStyle = fillStyle;
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCleanPriceBadgeShape(x, y, w, h, color) {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const radius = Math.min(w, h) / 2;
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(20, 25, 30, 0.38)';
+  ctx.shadowBlur = Math.round(radius * 0.08);
+  ctx.shadowOffsetX = Math.round(radius * 0.05);
+  ctx.shadowOffsetY = Math.round(radius * 0.05);
+  drawBurstShape(cx, cy, radius * 0.98, radius * 0.93, 48, 'rgba(35, 42, 45, 0.38)');
+  ctx.restore();
+
+  const badgeGrad = ctx.createRadialGradient(cx - radius * 0.22, cy - radius * 0.28, radius * 0.05, cx, cy, radius * 0.98);
+  badgeGrad.addColorStop(0, shadeHexColor(color, 0.16));
+  badgeGrad.addColorStop(0.72, color);
+  badgeGrad.addColorStop(1, shadeHexColor(color, -0.08));
+  drawBurstShape(cx, cy, radius * 0.94, radius * 0.88, 48, badgeGrad);
+
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  drawBurstShape(cx - radius * 0.04, cy - radius * 0.07, radius * 0.78, radius * 0.74, 48, shadeHexColor(color, 0.22));
+  ctx.restore();
 }
 
 function drawImageCropContain(img, crop, x, y, w, h) {
@@ -3143,6 +3292,129 @@ function splitPriceDisplay() {
   }
   const symbol = state.currency === 'EUR' ? '€' : '$';
   return { symbol, value };
+}
+
+function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
+  const priceParts = splitPriceDisplay();
+  if (state.sectionEnabled.price === false || !priceParts.value) {
+    return;
+  }
+
+  const priceText = `${priceParts.symbol}${priceParts.value}`.trim();
+  ctx.font = 'bold 48px Segoe UI';
+  const textWidth = ctx.measureText(priceText).width;
+  const badgeW = Math.max(250, Math.min(430, Math.ceil(textWidth * 1.7 + 90)));
+  const badgeH = badgeW;
+  const priceOffset = getLayoutOffset('price');
+  const badgeX = cardX + cardW - badgeW - 24 + priceOffset.x;
+  const badgeY = cardY + cardH - badgeH - 22 + priceOffset.y;
+
+  const badgeColor = isHexColor(theme.priceBox) ? theme.priceBox : '#ff0050';
+  drawCleanPriceBadgeShape(badgeX, badgeY, badgeW, badgeH, badgeColor);
+
+  const textBoxW = Math.round(badgeW * 0.58);
+  const textBoxH = Math.round(badgeH * 0.28);
+  const textBoxX = badgeX + (badgeW - textBoxW) / 2;
+  const textBoxY = badgeY + (badgeH - textBoxH) / 2 + Math.round(badgeH * 0.01);
+  const textSize = fitText(priceText, textBoxW, '900', Math.round(badgeW * 0.17), 24, 'Segoe UI');
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = 'rgba(31,26,23,0.88)';
+  ctx.lineWidth = Math.max(3, Math.round(textSize * 0.12));
+  ctx.font = `900 ${textSize}px Segoe UI`;
+  ctx.strokeText(priceText, badgeX + badgeW / 2, textBoxY + textBoxH / 2);
+  ctx.fillText(priceText, badgeX + badgeW / 2, textBoxY + textBoxH / 2);
+  ctx.restore();
+
+  registerDraggableRegion('price', badgeX, badgeY, badgeW, badgeH);
+  registerRemovableElement(badgeX, badgeY, badgeW, badgeH, () => {
+    state.sectionEnabled.price = false;
+  });
+}
+
+function getContactTypeLabel(type) {
+  if (type === 'email') {
+    return t().labels.contactEmail;
+  }
+  if (type === 'address') {
+    return t().labels.contactAddress;
+  }
+  return t().labels.contactPhone;
+}
+
+function drawContactBadge(cardX, cardY, cardW, cardH, theme) {
+  if (state.sectionEnabled.contact === false) {
+    return;
+  }
+
+  const rows = (Array.isArray(state.contactItems) ? state.contactItems : [])
+    .map((item) => ({
+      label: getContactTypeLabel(item.type),
+      value: String(item.value || '').trim(),
+    }))
+    .filter((item) => item.value);
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  ctx.font = '900 17px Segoe UI';
+  const title = t().sections.contact.toUpperCase();
+  const titleWidth = ctx.measureText(title).width;
+  let maxLabelWidth = 0;
+  let maxValueWidth = 0;
+  rows.forEach((row) => {
+    ctx.font = '800 15px Segoe UI';
+    maxLabelWidth = Math.max(maxLabelWidth, ctx.measureText(row.label).width);
+    ctx.font = '900 16px Segoe UI';
+    maxValueWidth = Math.max(maxValueWidth, ctx.measureText(row.value).width);
+  });
+
+  const contactOffset = getLayoutOffset('contact');
+  const badgeW = Math.max(300, Math.min(cardW - 68, Math.ceil(Math.max(titleWidth + 56, maxLabelWidth + maxValueWidth + 96))));
+  const rowH = 32;
+  const badgeH = Math.max(106, 70 + rows.length * rowH);
+  const badgeX = cardX + cardW - badgeW - 34 + contactOffset.x;
+  const badgeY = cardY + cardH - badgeH - 170 + contactOffset.y;
+
+  drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 16, theme.specOuter);
+  const bg = ctx.createLinearGradient(badgeX + 6, badgeY + 6, badgeX + badgeW - 6, badgeY + badgeH - 6);
+  bg.addColorStop(0, theme.specInnerA);
+  bg.addColorStop(1, theme.specInnerB);
+  drawRoundedRect(badgeX + 6, badgeY + 6, badgeW - 12, badgeH - 12, 14, bg);
+
+  ctx.fillStyle = theme.specValue;
+  ctx.font = '900 17px Segoe UI';
+  ctx.fillText(title, badgeX + 22, badgeY + 32);
+  drawRoundedRect(badgeX + 20, badgeY + 45, badgeW - 40, 2, 1, 'rgba(255,255,255,0.42)');
+
+  const labelX = badgeX + 22;
+  const valueX = badgeX + Math.max(128, Math.round(badgeW * 0.38));
+  const labelColW = valueX - labelX - 12;
+  const valueColW = badgeX + badgeW - 22 - valueX;
+  const baseY = badgeY + 78;
+  rows.forEach((row, idx) => {
+    const y = baseY + idx * rowH;
+    if (idx > 0) {
+      drawRoundedRect(badgeX + 20, y - 21, badgeW - 40, 1, 0, theme.specDivider);
+    }
+    ctx.fillStyle = '#dce8ff';
+    const labelSize = fitText(row.label, labelColW, '800', 15, 12, 'Segoe UI');
+    ctx.font = `800 ${labelSize}px Segoe UI`;
+    ctx.fillText(row.label, labelX, y);
+    ctx.fillStyle = theme.specValue;
+    const valueSize = fitText(row.value, valueColW, '900', 16, 12, 'Segoe UI');
+    ctx.font = `900 ${valueSize}px Segoe UI`;
+    ctx.fillText(row.value, valueX, y);
+  });
+
+  registerDraggableRegion('contact', badgeX, badgeY, badgeW, badgeH);
+  registerRemovableElement(badgeX, badgeY, badgeW, badgeH, () => {
+    state.sectionEnabled.contact = false;
+  });
 }
 
 function parseGenerationLabel(processorText) {
@@ -3856,67 +4128,7 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
     logoImageBodyRect = null;
   }
 
-  const priceParts = splitPriceDisplay();
-  if (state.sectionEnabled.price !== false && priceParts.value) {
-    const symbolFontSize = 52;
-    const valueFontSize = 46;
-    const symbolGap = 20;
-    const leftPad = 22;
-    const rightPad = 26;
-    ctx.font = `bold ${symbolFontSize}px Segoe UI`;
-    const symbolWidth = ctx.measureText(priceParts.symbol).width;
-    ctx.font = `bold ${valueFontSize}px Segoe UI`;
-    const valueWidth = ctx.measureText(priceParts.value).width;
-
-    const contentWidth = leftPad + symbolWidth + symbolGap + valueWidth + rightPad;
-    const badgeW = Math.max(240, Math.min(430, Math.ceil(contentWidth + 8)));
-    const badgeH = 84;
-    const priceOffset = getLayoutOffset('price');
-    const badgeX = cardX + cardW - badgeW - 24 + priceOffset.x;
-    const badgeY = cardY + cardH - badgeH - 22 + priceOffset.y;
-
-    const glowGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeW, badgeY + badgeH);
-    glowGrad.addColorStop(0, '#ffffff');
-    glowGrad.addColorStop(1, '#dbe5f3');
-    drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 16, glowGrad);
-
-    const innerGrad = ctx.createLinearGradient(badgeX + 8, badgeY + 8, badgeX + badgeW - 8, badgeY + badgeH - 8);
-    innerGrad.addColorStop(0, theme.priceBox);
-    innerGrad.addColorStop(1, '#0b1f4b');
-    drawRoundedRect(badgeX + 8, badgeY + 8, badgeW - 16, badgeH - 16, 12, innerGrad);
-
-    const topHighlight = ctx.createLinearGradient(badgeX + 14, badgeY + 14, badgeX + badgeW - 14, badgeY + 30);
-    topHighlight.addColorStop(0, 'rgba(255,255,255,0.32)');
-    topHighlight.addColorStop(1, 'rgba(255,255,255,0)');
-    drawRoundedRect(badgeX + 14, badgeY + 14, badgeW - 28, 14, 7, topHighlight);
-
-    const priceLabel = state.lang === 'fr' ? 'Prix' : 'Price';
-    const labelText = priceLabel.toUpperCase();
-    ctx.font = 'bold 16px Segoe UI';
-    const labelW = Math.ceil(ctx.measureText(labelText).width) + 24;
-    const labelH = 24;
-    const labelX = badgeX + 12;
-    const labelY = badgeY - 14;
-    drawRoundedRect(labelX, labelY, labelW, labelH, 7, '#ffffff');
-    drawRoundedRect(labelX + 2, labelY + 2, labelW - 4, labelH - 4, 6, '#0b1f4b');
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px Segoe UI';
-    ctx.fillText(labelText, labelX + 12, labelY + 18);
-
-    ctx.fillStyle = theme.priceText;
-    ctx.font = `bold ${symbolFontSize}px Segoe UI`;
-    ctx.fillText(priceParts.symbol, badgeX + leftPad, badgeY + 74);
-
-    const valueX = badgeX + leftPad + symbolWidth + symbolGap;
-    const valueFitWidth = badgeW - (valueX - badgeX) - rightPad;
-    const valueFitSize = fitText(priceParts.value, valueFitWidth, 'bold', valueFontSize, 24, 'Segoe UI');
-    ctx.font = `bold ${valueFitSize}px Segoe UI`;
-    ctx.fillText(priceParts.value, valueX, badgeY + 72);
-    registerDraggableRegion('price', badgeX, badgeY - 16, badgeW, badgeH + 20);
-    registerRemovableElement(badgeX, badgeY - 16, badgeW, badgeH + 20, () => {
-      state.sectionEnabled.price = false;
-    });
-  }
+  drawPriceBadge(cardX, cardY, cardW, cardH, theme);
 }
 
 function drawCustomTextLayers() {
@@ -4435,7 +4647,7 @@ function drawPoster() {
     tagsBottom = tagY + badgeH;
     tagY += badgeH + tagGap;
   }
-  if (state.sectionEnabled.badges !== false && state.showScreenBadge && (state.screenSize || '').trim()) {
+  if (state.sectionEnabled.screen !== false && state.showScreenBadge && (state.screenSize || '').trim()) {
     const screenBadgeSize = getStackBadgeSize('screen');
     const tagW = screenBadgeSize.w;
     const badgeH = screenBadgeSize.h;
@@ -4546,8 +4758,7 @@ function drawPoster() {
     let specY = cardY + cardH - 350 + specOffset.y;
     let totalSpecWidth = 0;
     let totalSpecHeight = 0;
-
-    specCards.forEach((card) => {
+    const measuredSpecCards = specCards.map((card) => {
       const titleSource = card.title || card.titleEn || card.titleFr || '';
       const title = localizeSpecCardTitle(titleSource);
       const rows = Array.isArray(card.rows)
@@ -4558,7 +4769,7 @@ function drawPoster() {
         })
         : [];
 
-      ctx.font = 'bold 16px Segoe UI';
+      ctx.font = '900 17px Segoe UI';
       const titleWidth = ctx.measureText(title.toUpperCase()).width;
       let maxLabelWidth = 0;
       let maxValueWidth = 0;
@@ -4566,17 +4777,38 @@ function drawPoster() {
       rows.forEach((row) => {
         const left = localizeSpecRowText(row.left || row.leftEn || row.leftFr || '');
         const right = localizeSpecRowText(row.right || row.rightEn || row.rightFr || '');
-        ctx.font = 'bold 14px Segoe UI';
+        ctx.font = '800 16px Segoe UI';
         maxLabelWidth = Math.max(maxLabelWidth, ctx.measureText(left || ' ').width);
-        ctx.font = 'bold 15px Segoe UI';
+        ctx.font = '900 17px Segoe UI';
         maxValueWidth = Math.max(maxValueWidth, ctx.measureText(right || ' ').width);
       });
 
-      const rowH = 30;
+      return {
+        title,
+        rows,
+        titleWidth,
+        contentWidth: maxLabelWidth + maxValueWidth,
+      };
+    });
+    const availableSpecW = Math.max(260, cardW - 74 - specOffset.x);
+    const sharedSpecW = Math.max(
+      250,
+      Math.min(
+        availableSpecW,
+        Math.ceil(Math.max(
+          250,
+          ...measuredSpecCards.map((card) => Math.max(card.titleWidth + 52, card.contentWidth + 112))
+        ))
+      )
+    );
+
+    measuredSpecCards.forEach((card) => {
+      const { title, rows } = card;
+      const rowH = 34;
       const hasRows = rows.length > 0;
       const visibleRows = Math.max(1, rows.length);
-      const specW = Math.max(220, Math.min(420, Math.ceil(Math.max(titleWidth + 40, maxLabelWidth + maxValueWidth + 68))));
-      const specH = hasRows ? Math.max(92, 62 + (visibleRows * rowH)) : 66;
+      const specW = sharedSpecW;
+      const specH = hasRows ? Math.max(104, 70 + (visibleRows * rowH)) : 74;
 
       drawRoundedRect(specX, specY, specW, specH, 14, theme.specOuter);
       const specInnerGrad = ctx.createLinearGradient(specX + 6, specY + 6, specX + specW - 6, specY + specH - 6);
@@ -4584,34 +4816,35 @@ function drawPoster() {
       specInnerGrad.addColorStop(1, theme.specInnerB);
       drawRoundedRect(specX + 6, specY + 6, specW - 12, specH - 12, 12, specInnerGrad);
 
-      const rowStartY = specY + 50;
+      const rowStartY = specY + 56;
+      drawRoundedRect(specX + 18, specY + 44, specW - 36, 2, 1, 'rgba(255,255,255,0.42)');
       if (hasRows) {
-        const lineY = rowStartY + 2;
+        const lineY = rowStartY + 4;
         for (let i = 0; i < Math.max(0, visibleRows - 1); i += 1) {
           drawRoundedRect(specX + 16, lineY + rowH * i, specW - 32, 1, 0, theme.specDivider);
         }
       }
 
       ctx.fillStyle = theme.specValue;
-      ctx.font = 'bold 16px Segoe UI';
-      ctx.fillText(title.toUpperCase(), specX + 20, hasRows ? specY + 32 : specY + 38);
+      ctx.font = '900 17px Segoe UI';
+      ctx.fillText(title.toUpperCase(), specX + 20, hasRows ? specY + 31 : specY + 36);
 
       const labelX = specX + 20;
-      const valueX = specX + Math.max(120, Math.round(specW * 0.56));
+      const valueX = specX + Math.max(170, Math.round(specW * 0.58));
       const labelColW = valueX - labelX - 10;
       const valueColW = specX + specW - 20 - valueX;
-      const textBaseY = rowStartY + 24;
+      const textBaseY = rowStartY + 25;
 
       rows.forEach((row, idx) => {
         const left = localizeSpecRowText(row.left || row.leftEn || row.leftFr || '') || ' ';
         const right = localizeSpecRowText(row.right || row.rightEn || row.rightFr || '') || ' ';
-        ctx.fillStyle = theme.specLabel;
-        const labelSize = fitText(left, labelColW, 'bold', 14, 11, 'Segoe UI');
-        ctx.font = `bold ${labelSize}px Segoe UI`;
+        ctx.fillStyle = '#dce8ff';
+        const labelSize = fitText(left, labelColW, '800', 16, 14, 'Segoe UI');
+        ctx.font = `800 ${labelSize}px Segoe UI`;
         ctx.fillText(left, labelX, textBaseY + rowH * idx);
         ctx.fillStyle = theme.specValue;
-        const valueSize = fitText(right, valueColW, 'bold', 15, 11, 'Segoe UI');
-        ctx.font = `bold ${valueSize}px Segoe UI`;
+        const valueSize = fitText(right, valueColW, '900', 17, 15, 'Segoe UI');
+        ctx.font = `900 ${valueSize}px Segoe UI`;
         ctx.fillText(right, valueX, textBaseY + rowH * idx);
       });
 
@@ -4630,68 +4863,8 @@ function drawPoster() {
     }
   }
 
-  const priceParts = splitPriceDisplay();
-  if (state.sectionEnabled.price !== false && priceParts.value) {
-    const symbolFontSize = 52;
-    const valueFontSize = 46;
-    const symbolGap = 20;
-    const leftPad = 22;
-    const rightPad = 26;
-    ctx.font = `bold ${symbolFontSize}px Segoe UI`;
-    const symbolWidth = ctx.measureText(priceParts.symbol).width;
-    ctx.font = `bold ${valueFontSize}px Segoe UI`;
-    const valueWidth = ctx.measureText(priceParts.value).width;
-
-    const contentWidth = leftPad + symbolWidth + symbolGap + valueWidth + rightPad;
-    const badgeW = Math.max(240, Math.min(430, Math.ceil(contentWidth + 8)));
-    const badgeH = 84;
-    const priceOffset = getLayoutOffset('price');
-    const badgeX = cardX + cardW - badgeW - 24 + priceOffset.x;
-    const badgeY = cardY + cardH - badgeH - 22 + priceOffset.y;
-
-    const glowGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeW, badgeY + badgeH);
-    glowGrad.addColorStop(0, '#ffffff');
-    glowGrad.addColorStop(1, '#dbe5f3');
-    drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 16, glowGrad);
-
-    const innerGrad = ctx.createLinearGradient(badgeX + 8, badgeY + 8, badgeX + badgeW - 8, badgeY + badgeH - 8);
-    innerGrad.addColorStop(0, theme.priceBox);
-    innerGrad.addColorStop(1, '#0b1f4b');
-    drawRoundedRect(badgeX + 8, badgeY + 8, badgeW - 16, badgeH - 16, 12, innerGrad);
-
-    const topHighlight = ctx.createLinearGradient(badgeX + 14, badgeY + 14, badgeX + badgeW - 14, badgeY + 30);
-    topHighlight.addColorStop(0, 'rgba(255,255,255,0.32)');
-    topHighlight.addColorStop(1, 'rgba(255,255,255,0)');
-    drawRoundedRect(badgeX + 14, badgeY + 14, badgeW - 28, 14, 7, topHighlight);
-
-    const priceLabel = state.lang === 'fr' ? 'Prix' : 'Price';
-    const labelText = priceLabel.toUpperCase();
-    ctx.font = 'bold 16px Segoe UI';
-    const labelW = Math.ceil(ctx.measureText(labelText).width) + 24;
-    const labelH = 24;
-    const labelX = badgeX + 12;
-    const labelY = badgeY - 14;
-    drawRoundedRect(labelX, labelY, labelW, labelH, 7, '#ffffff');
-    drawRoundedRect(labelX + 2, labelY + 2, labelW - 4, labelH - 4, 6, '#0b1f4b');
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px Segoe UI';
-    ctx.fillText(labelText, labelX + 12, labelY + 18);
-
-    ctx.fillStyle = theme.priceText;
-    ctx.font = `bold ${symbolFontSize}px Segoe UI`;
-    ctx.fillText(priceParts.symbol, badgeX + leftPad, badgeY + 74);
-
-    const valueX = badgeX + leftPad + symbolWidth + symbolGap;
-    const valueFitWidth = badgeW - (valueX - badgeX) - rightPad;
-    const valueFitSize = fitText(priceParts.value, valueFitWidth, 'bold', valueFontSize, 24, 'Segoe UI');
-    ctx.font = `bold ${valueFontSize}px Segoe UI`;
-    ctx.font = `bold ${valueFitSize}px Segoe UI`;
-    ctx.fillText(priceParts.value, valueX, badgeY + 72);
-    registerDraggableRegion('price', badgeX, badgeY - 16, badgeW, badgeH + 20);
-    registerRemovableElement(badgeX, badgeY - 16, badgeW, badgeH + 20, () => {
-      state.sectionEnabled.price = false;
-    });
-  }
+  drawPriceBadge(cardX, cardY, cardW, cardH, theme);
+  drawContactBadge(cardX, cardY, cardW, cardH, theme);
 
   drawCustomTextLayers();
 
