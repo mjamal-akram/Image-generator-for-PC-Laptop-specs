@@ -1,15 +1,31 @@
 ﻿const DEFAULT_LAYOUT_OFFSETS = {
-  os: { x: 0, y: 0 },
-  storage: { x: 0, y: 0 },
-  guarantee: { x: 0, y: 0 },
-  logo: { x: 0, y: 0 },
-  device: { x: 0, y: 0 },
-  tags: { x: 0, y: 0 },
-  spec: { x: 0, y: 0 },
-  brand: { x: 0, y: 0 },
-  price: { x: 0, y: 0 },
+  os: { x: -2, y: 810 },
+  storage: { x: -275, y: -12 },
+  guarantee: { x: 22, y: 810 },
+  logo: { x: -5, y: 3 },
+  device: { x: 47, y: -61 },
+  tags: { x: -6, y: 22 },
+  spec: { x: -20, y: -98 },
+  brand: { x: 394, y: -884 },
+  price: { x: 6, y: -202 },
   chargerCompatibility: { x: 0, y: 0 },
 };
+
+const LAYOUT_PREFERENCES_STORAGE_KEY = 'jam_iw-layout-preferences-v3';
+const DEFAULT_LOGO_SIZE = 56;
+const DEFAULT_LOGO_BADGE_SIZE = { w: 150, h: 150 };
+const DEFAULT_STORAGE_BADGE_SIZE = { w: 340, h: 108 };
+const DEFAULT_OS_BADGE_SIZE = { w: 126, h: 150 };
+const DEFAULT_GUARANTEE_BADGE_SIZE = { w: 126, h: 150 };
+const DEFAULT_STACK_BADGE_SIZE = { w: 126, h: 126 };
+const DEFAULT_PC_IMAGE_SRC = 'assets/default-pc.png';
+const DEFAULT_PC_IMAGE_CROP = { x: 0, y: 0, w: 600, h: 572 };
+const DEFAULT_PC_IMAGE_ID = '__default_pc_image__';
+const DEFAULT_PC_IMAGE_SIZE = { w: 500, h: 477 };
+const DEFAULT_LAPTOP_IMAGE_SRC = 'assets/default-laptop.png';
+const DEFAULT_LAPTOP_IMAGE_CROP = { x: 130, y: 260, w: 940, h: 670 };
+const DEFAULT_LAPTOP_IMAGE_ID = '__default_laptop_image__';
+const DEFAULT_LAPTOP_IMAGE_SIZE = { w: 510, h: 360 };
 
 function cloneDefaultLayoutOffsets() {
   return Object.fromEntries(
@@ -17,8 +33,109 @@ function cloneDefaultLayoutOffsets() {
   );
 }
 
+function normalizeBoxSize(value, fallback) {
+  const width = Number(value?.w);
+  const height = Number(value?.h);
+  return {
+    w: Number.isFinite(width) ? width : fallback.w,
+    h: Number.isFinite(height) ? height : fallback.h,
+  };
+}
+
+function cloneDefaultStackBadgeSizes() {
+  return {
+    processor: { ...DEFAULT_STACK_BADGE_SIZE },
+    screen: { ...DEFAULT_STACK_BADGE_SIZE },
+    battery: { ...DEFAULT_STACK_BADGE_SIZE },
+    storage: { ...DEFAULT_STACK_BADGE_SIZE },
+    ram: { ...DEFAULT_STACK_BADGE_SIZE },
+  };
+}
+
+function getStackBadgeSize(key) {
+  const sizes = state.stackBadgeSizes || {};
+  return normalizeBoxSize(sizes[key], DEFAULT_STACK_BADGE_SIZE);
+}
+
+function readSavedLayoutPreferences() {
+  try {
+    const raw = window.localStorage?.getItem(LAYOUT_PREFERENCES_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      layoutOffsets: {
+        ...cloneDefaultLayoutOffsets(),
+        ...(parsed?.layoutOffsets || {}),
+      },
+      logoSize: Number.isFinite(Number(parsed?.logoSize)) ? Number(parsed.logoSize) : DEFAULT_LOGO_SIZE,
+      logoBadgeSize: normalizeBoxSize(parsed?.logoBadgeSize, DEFAULT_LOGO_BADGE_SIZE),
+      storageBadgeSize: normalizeBoxSize(parsed?.storageBadgeSize, DEFAULT_STORAGE_BADGE_SIZE),
+      osBadgeSize: normalizeBoxSize(parsed?.osBadgeSize, DEFAULT_OS_BADGE_SIZE),
+      guaranteeBadgeSize: normalizeBoxSize(parsed?.guaranteeBadgeSize, DEFAULT_GUARANTEE_BADGE_SIZE),
+      defaultPcImageSize: normalizeBoxSize(parsed?.defaultPcImageSize, DEFAULT_PC_IMAGE_SIZE),
+      defaultLaptopImageSize: normalizeBoxSize(parsed?.defaultLaptopImageSize, DEFAULT_LAPTOP_IMAGE_SIZE),
+      stackBadgeSizes: parsed?.stackBadgeSizes || null,
+      osBadgeSizeAdjusted: !!parsed?.osBadgeSizeAdjusted,
+      guaranteeBadgeSizeAdjusted: !!parsed?.guaranteeBadgeSizeAdjusted,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistLayoutPreferences() {
+  try {
+    window.localStorage?.setItem(
+      LAYOUT_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({
+        layoutOffsets: state.layoutOffsets,
+        logoSize: state.logoSize,
+        logoBadgeSize: state.logoBadgeSize,
+        storageBadgeSize: state.storageBadgeSize,
+        osBadgeSize: state.osBadgeSize,
+        guaranteeBadgeSize: state.guaranteeBadgeSize,
+        defaultPcImageSize: state.defaultPcImageSize,
+        defaultLaptopImageSize: state.defaultLaptopImageSize,
+        stackBadgeSizes: state.stackBadgeSizes,
+        osBadgeSizeAdjusted: !!state.osBadgeSizeAdjusted,
+        guaranteeBadgeSizeAdjusted: !!state.guaranteeBadgeSizeAdjusted,
+      })
+    );
+  } catch {
+    // Ignore storage failures and keep the editor usable.
+  }
+}
+
 function resetLayoutToDefault() {
+  const saved = readSavedLayoutPreferences();
   state.layoutOffsets = cloneDefaultLayoutOffsets();
+  state.logoSize = saved?.logoSize || DEFAULT_LOGO_SIZE;
+  state.logoBadgeSize = saved?.logoBadgeSize || { ...DEFAULT_LOGO_BADGE_SIZE };
+  state.storageBadgeSize = saved?.storageBadgeSize || { ...DEFAULT_STORAGE_BADGE_SIZE };
+  state.osBadgeSize = saved?.osBadgeSize || { ...DEFAULT_OS_BADGE_SIZE };
+  state.guaranteeBadgeSize = saved?.guaranteeBadgeSize || { ...DEFAULT_GUARANTEE_BADGE_SIZE };
+  state.defaultPcImageSize = saved?.defaultPcImageSize || { ...DEFAULT_PC_IMAGE_SIZE };
+  state.defaultLaptopImageSize = saved?.defaultLaptopImageSize || { ...DEFAULT_LAPTOP_IMAGE_SIZE };
+  state.stackBadgeSizes = saved?.stackBadgeSizes || cloneDefaultStackBadgeSizes();
+  state.osBadgeSizeAdjusted = !!saved?.osBadgeSizeAdjusted;
+  state.guaranteeBadgeSizeAdjusted = !!saved?.guaranteeBadgeSizeAdjusted;
+  state.sectionEnabled.titleBadge = true;
+  state.sectionEnabled.os = true;
+  state.sectionEnabled.storage = true;
+  state.sectionEnabled.processor = true;
+  state.sectionEnabled.specifications = true;
+  state.sectionEnabled.battery = true;
+  state.sectionEnabled.guarantee = true;
+  state.sectionEnabled.price = true;
+  state.sectionEnabled.badges = true;
+  state.showIntelBadge = true;
+  state.showScreenBadge = true;
+  state.showBatteryBadge = true;
+  state.showStorageBadge = true;
+  state.showRamBadge = true;
+  state.showGuaranteeBadge = true;
 }
 
 const state = {
@@ -33,19 +150,35 @@ const state = {
   keyboardBacklight: 'Yes',
   storageType: 'SSD',
   storageSize: '480 GB',
-  titleTop: 'SSD',
-  titleBottom: 'HARD DRIVE',
+  titleTop: 'ENTER TEXT HERE',
+  titleBottom: '',
   brand: 'Dell',
-  processor: 'Intel Core i5-3470 3.2 GHz',
-  processorCore: 'i5',
-  processorGeneration: '3rd Gen',
-  processorNumber: '',
+  processor: 'Core i5 2300 U 8th Generation',
+  processorCore: 'Core i5',
+  processorGeneration: '8th Generation',
+  processorNumber: '2300 U',
   processorSpeed: '2.2 GHz',
+  brandFontSize: 36,
   screenSize: '16"',
   usbSpec: 'Yes',
   wifiSpec: 'Yes',
   batteryPercentage: '85',
+  guaranteeText: 'YOUR TEXT HERE',
   guaranteePeriod: '12 Months',
+  specCards: [
+    {
+      title: 'Specifications',
+      rows: [],
+    },
+    {
+      title: 'Connectivity',
+      rows: [],
+    },
+    {
+      title: 'Power',
+      rows: [],
+    },
+  ],
   chargerTitle: 'FAST CHARGER',
   chargerType: 'USB-C Charger',
   chargerPower: '65W',
@@ -81,8 +214,16 @@ const state = {
   },
   selectedChargerImageId: null,
   logoImageDataUrl: '',
-  logoSize: 56,
-  logoBadgeSize: { w: 150, h: 150 },
+  logoSize: DEFAULT_LOGO_SIZE,
+  logoBadgeSize: { ...DEFAULT_LOGO_BADGE_SIZE },
+  storageBadgeSize: { ...DEFAULT_STORAGE_BADGE_SIZE },
+  osBadgeSize: { ...DEFAULT_OS_BADGE_SIZE },
+  guaranteeBadgeSize: { ...DEFAULT_GUARANTEE_BADGE_SIZE },
+  defaultPcImageSize: { ...DEFAULT_PC_IMAGE_SIZE },
+  defaultLaptopImageSize: { ...DEFAULT_LAPTOP_IMAGE_SIZE },
+  stackBadgeSizes: cloneDefaultStackBadgeSizes(),
+  osBadgeSizeAdjusted: false,
+  guaranteeBadgeSizeAdjusted: false,
   showLogoBadge: true,
   customThemeColors: {},
   customTexts: [],
@@ -92,12 +233,14 @@ const state = {
     image: true,
     logo: true,
     charger: true,
+    titleBadge: true,
     os: true,
     ram: true,
     keyboard: true,
     storage: true,
     brand: true,
     processor: true,
+    specifications: true,
     battery: true,
     guarantee: true,
     price: true,
@@ -118,6 +261,7 @@ const i18n = {
       generator: 'Generator',
       theme: 'Theme',
       colors: 'Colors',
+      titleBadge: 'Title Badge Text',
       type: 'Device Type',
       image: 'Device Image',
       chargerImage: 'Charger Image',
@@ -129,6 +273,7 @@ const i18n = {
       brand: 'Brand Name',
       processor: 'Processor Details',
       battery: 'Battery',
+      specifications: 'Specifications',
       guarantee: 'Guarantee',
       price: 'Price',
       badges: 'Badge Visibility',
@@ -148,6 +293,14 @@ const i18n = {
       storageHint: 'Type custom value (example: 750 GB)',
       brand: 'Brand',
       processor: 'Processor',
+      processorBadgeText: 'Processor Badge Text',
+      processorBadgeHint: 'Example: Core i5 2300 U 2.2 GHz',
+      processorBadgePrimary: 'Processor Badge Line 1',
+      processorBadgePrimaryHint: 'Example: Core i5',
+      processorBadgeSecondary: 'Processor Badge Line 2',
+      processorBadgeSecondaryHint: 'Example: 2300 U',
+      processorBadgeTertiary: 'Processor Badge Line 3',
+      processorBadgeTertiaryHint: 'Example: 8th Generation',
       processorCore: 'Core Type',
       processorGeneration: 'Generation',
       processorNumber: 'Processor Number',
@@ -166,8 +319,20 @@ const i18n = {
       batteryHealth: 'Battery Status',
       batteryPercentage: 'Battery Percentage',
       batteryPercentageHint: 'Example: 85',
+      cardTitle: 'Title',
+      cardTitleHint: 'Example: Specifications',
+      specLeft: 'Left Text',
+      specLeftHint: 'Example: USB',
+      specRight: 'Right Text',
+      specRightHint: 'Example: Yes',
+      addSpecCard: 'Add Info Card',
+      removeSpecCard: 'Remove Card',
+      addSpecRow: 'Add Specification Row',
+      removeSpecRow: 'Remove Row',
+      guaranteeText: 'Guarantee Box Text',
+      guaranteeTextHint: 'Example: Original Product',
       guaranteePeriod: 'Guarantee Period',
-      guaranteePeriodHint: 'Example: 12 Months or 2 Years',
+      guaranteePeriodHint: 'Example: 12 Months of Guarantee',
       price: 'Price',
       currency: 'Currency',
       priceHint: 'Typeable value (example: 450 USD)',
@@ -251,6 +416,7 @@ const i18n = {
       generator: 'Generateur',
       theme: 'Theme',
       colors: 'Couleurs',
+      titleBadge: 'Texte Du Badge Titre',
       type: 'Type D Appareil',
       image: 'Image Appareil',
       chargerImage: 'Image Chargeur',
@@ -262,6 +428,7 @@ const i18n = {
       brand: 'Marque',
       processor: 'Details Processeur',
       battery: 'Batterie',
+      specifications: 'Caracteristiques',
       guarantee: 'Garantie',
       price: 'Prix',
       badges: 'Visibilite Des Badges',
@@ -281,6 +448,14 @@ const i18n = {
       storageHint: 'Saisir une valeur (exemple: 750 GB)',
       brand: 'Marque',
       processor: 'Processeur',
+      processorBadgeText: 'Texte Badge Processeur',
+      processorBadgeHint: 'Exemple: Core i5 2300 U 2.2 GHz',
+      processorBadgePrimary: 'Badge Processeur Ligne 1',
+      processorBadgePrimaryHint: 'Exemple: Core i5',
+      processorBadgeSecondary: 'Badge Processeur Ligne 2',
+      processorBadgeSecondaryHint: 'Exemple: 2300 U',
+      processorBadgeTertiary: 'Badge Processeur Ligne 3',
+      processorBadgeTertiaryHint: 'Exemple: 8th Generation',
       processorCore: 'Type De Core',
       processorGeneration: 'Generation',
       processorNumber: 'Numero Processeur',
@@ -299,8 +474,20 @@ const i18n = {
       batteryHealth: 'Etat Batterie',
       batteryPercentage: 'Pourcentage Batterie',
       batteryPercentageHint: 'Exemple: 85',
+      cardTitle: 'Titre',
+      cardTitleHint: 'Exemple: Caracteristiques',
+      specLeft: 'Texte Gauche',
+      specLeftHint: 'Exemple: USB',
+      specRight: 'Texte Droite',
+      specRightHint: 'Exemple: Oui',
+      addSpecCard: 'Ajouter Une Carte',
+      removeSpecCard: 'Supprimer Carte',
+      addSpecRow: 'Ajouter Une Ligne',
+      removeSpecRow: 'Supprimer Ligne',
+      guaranteeText: 'Texte Dans Le Badge Garantie',
+      guaranteeTextHint: 'Exemple: Produit Original',
       guaranteePeriod: 'Periode Garantie',
-      guaranteePeriodHint: 'Exemple: 12 Mois ou 2 Ans',
+      guaranteePeriodHint: 'Exemple: 12 Mois De Garantie',
       price: 'Prix',
       currency: 'Devise',
       priceHint: 'Valeur a saisir (exemple: 450 EUR)',
@@ -530,6 +717,8 @@ const controlsPanel = document.getElementById('controlsPanel');
 const statusText = document.getElementById('statusText');
 let logoImageObj = null;
 let chargerImageObj = null;
+let defaultPcImageObj = null;
+let defaultLaptopImageObj = null;
 let isGenerating = false;
 let statusAnimTimer = null;
 let logoResizeHandleRect = null;
@@ -537,10 +726,30 @@ let logoBadgeResizeHandleRect = null;
 let logoBadgeBodyRect = null;
 let logoImageBodyRect = null;
 let isLogoSelected = false;
+let storageBadgeResizeHandleRect = null;
+let storageBadgeBodyRect = null;
+let isStorageBadgeSelected = false;
+let osBadgeResizeHandleRect = null;
+let osBadgeBodyRect = null;
+let isOsBadgeSelected = false;
+let guaranteeBadgeResizeHandleRect = null;
+let guaranteeBadgeBodyRect = null;
+let isGuaranteeBadgeSelected = false;
+let stackBadgeRects = [];
+let stackBadgeResizeHandleRects = [];
+let selectedStackBadgeKey = null;
 let isResizingLogo = false;
 let logoResizeStart = null;
 let isResizingLogoBadge = false;
 let logoBadgeResizeStart = null;
+let isResizingStorageBadge = false;
+let storageBadgeResizeStart = null;
+let isResizingOsBadge = false;
+let osBadgeResizeStart = null;
+let isResizingGuaranteeBadge = false;
+let guaranteeBadgeResizeStart = null;
+let isResizingStackBadge = false;
+let stackBadgeResizeStart = null;
 let draggableRegions = [];
 let removableElements = [];
 let removeButtonRects = [];
@@ -549,6 +758,7 @@ const MAX_UNDO_STEPS = 40;
 let undoStack = [];
 let activeDrag = null;
 let deviceImageHandles = [];
+let isDefaultDeviceImageSelected = false;
 let isResizingDeviceImage = false;
 let resizingDeviceImageId = null;
 let deviceResizeStart = null;
@@ -664,9 +874,20 @@ function snapshotForUndo() {
     chargerImages: snapshotChargerImages,
     selectedChargerImageId: state.selectedChargerImageId,
     customTexts: snapshotCustomTexts,
+    specCards: JSON.parse(JSON.stringify(state.specCards || [])),
     chargerTitle: state.chargerTitle,
+    guaranteeText: state.guaranteeText,
+    guaranteePeriod: state.guaranteePeriod,
     chargerImageDataUrl: state.chargerImageDataUrl,
     logoImageDataUrl: state.logoImageDataUrl,
+    storageBadgeSize: JSON.parse(JSON.stringify(state.storageBadgeSize || { w: 340, h: 108 })),
+    osBadgeSize: JSON.parse(JSON.stringify(state.osBadgeSize || DEFAULT_OS_BADGE_SIZE)),
+    guaranteeBadgeSize: JSON.parse(JSON.stringify(state.guaranteeBadgeSize || DEFAULT_GUARANTEE_BADGE_SIZE)),
+    defaultPcImageSize: JSON.parse(JSON.stringify(state.defaultPcImageSize || DEFAULT_PC_IMAGE_SIZE)),
+    defaultLaptopImageSize: JSON.parse(JSON.stringify(state.defaultLaptopImageSize || DEFAULT_LAPTOP_IMAGE_SIZE)),
+    stackBadgeSizes: JSON.parse(JSON.stringify(state.stackBadgeSizes || cloneDefaultStackBadgeSizes())),
+    osBadgeSizeAdjusted: !!state.osBadgeSizeAdjusted,
+    guaranteeBadgeSizeAdjusted: !!state.guaranteeBadgeSizeAdjusted,
   };
 }
 
@@ -698,7 +919,18 @@ function restoreFromUndoSnapshot(snapshot) {
   state.showChargerConditionBadge = !!snapshot.showChargerConditionBadge;
   state.showChargerCompatibilityBadge = !!snapshot.showChargerCompatibilityBadge;
   state.brand = snapshot.brand ?? state.brand;
+  state.specCards = JSON.parse(JSON.stringify(snapshot.specCards || state.specCards || []));
   state.chargerTitle = snapshot.chargerTitle ?? state.chargerTitle;
+  state.guaranteeText = snapshot.guaranteeText ?? state.guaranteeText;
+  state.guaranteePeriod = snapshot.guaranteePeriod ?? state.guaranteePeriod;
+  state.storageBadgeSize = JSON.parse(JSON.stringify(snapshot.storageBadgeSize || state.storageBadgeSize || { w: 340, h: 108 }));
+  state.osBadgeSize = JSON.parse(JSON.stringify(snapshot.osBadgeSize || state.osBadgeSize || DEFAULT_OS_BADGE_SIZE));
+  state.guaranteeBadgeSize = JSON.parse(JSON.stringify(snapshot.guaranteeBadgeSize || state.guaranteeBadgeSize || DEFAULT_GUARANTEE_BADGE_SIZE));
+  state.defaultPcImageSize = JSON.parse(JSON.stringify(snapshot.defaultPcImageSize || state.defaultPcImageSize || DEFAULT_PC_IMAGE_SIZE));
+  state.defaultLaptopImageSize = JSON.parse(JSON.stringify(snapshot.defaultLaptopImageSize || state.defaultLaptopImageSize || DEFAULT_LAPTOP_IMAGE_SIZE));
+  state.stackBadgeSizes = JSON.parse(JSON.stringify(snapshot.stackBadgeSizes || state.stackBadgeSizes || cloneDefaultStackBadgeSizes()));
+  state.osBadgeSizeAdjusted = !!snapshot.osBadgeSizeAdjusted;
+  state.guaranteeBadgeSizeAdjusted = !!snapshot.guaranteeBadgeSizeAdjusted;
 
   const hydrateLayer = (layer) => {
     const imageObj = new Image();
@@ -1071,6 +1303,26 @@ function stopTextCaretBlink() {
   textCaretVisible = true;
 }
 
+function loadImageObject(src) {
+  return new Promise((resolve) => {
+    const imageObj = new Image();
+    let settled = false;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(imageObj);
+    };
+    imageObj.onload = finish;
+    imageObj.onerror = finish;
+    imageObj.src = src;
+    if (imageObj.complete) {
+      finish();
+    }
+  });
+}
+
 function getCurrentInteractiveImages() {
   return state.generator === 'charger' ? (state.chargerImages || []) : getCurrentDeviceImages();
 }
@@ -1262,7 +1514,11 @@ function buildTileSection(title, key, values, labelMap = null) {
     btn.className = `tile ${state[key] === value ? 'active' : ''}`;
     btn.textContent = labelMap ? labelMap(value) : value;
     btn.addEventListener('click', () => {
+      const changed = state[key] !== value;
       state[key] = value;
+      if (changed && key === 'type') {
+        isDefaultDeviceImageSelected = false;
+      }
       renderControls();
       drawPoster();
     });
@@ -1273,12 +1529,12 @@ function buildTileSection(title, key, values, labelMap = null) {
   return section;
 }
 
-function buildStorageSection() {
+function buildTitleBadgeSection() {
   const section = document.createElement('section');
   section.className = 'section';
 
   const h3 = document.createElement('h3');
-  h3.textContent = t().sections.storage;
+  h3.textContent = t().sections.titleBadge;
   section.appendChild(h3);
 
   const labels = t().labels;
@@ -1316,6 +1572,18 @@ function buildStorageSection() {
   titleGroup.appendChild(bottomTitleInput);
 
   section.appendChild(titleGroup);
+  return section;
+}
+
+function buildStorageSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.storage;
+  section.appendChild(h3);
+
+  const labels = t().labels;
 
   const typeTitle = document.createElement('div');
   typeTitle.textContent = labels.storageType;
@@ -1723,18 +1991,40 @@ function buildTilePlusInputSection(title, key, values, inputLabel, placeholder =
   });
   inputGroup.appendChild(input);
 
+  if (key === 'brand') {
+    const sizeLabel = document.createElement('label');
+    sizeLabel.textContent = 'Brand Text Size';
+    inputGroup.appendChild(sizeLabel);
+
+    const sizeInput = document.createElement('input');
+    sizeInput.type = 'range';
+    sizeInput.min = '18';
+    sizeInput.max = '72';
+    sizeInput.step = '1';
+    sizeInput.value = String(state.brandFontSize || 36);
+
+    const sizeValue = document.createElement('div');
+    sizeValue.textContent = `${state.brandFontSize || 36}px`;
+
+    sizeInput.addEventListener('input', (e) => {
+      state.brandFontSize = Number(e.target.value) || 36;
+      sizeValue.textContent = `${state.brandFontSize}px`;
+      drawPoster();
+    });
+
+    inputGroup.appendChild(sizeInput);
+    inputGroup.appendChild(sizeValue);
+  }
+
   section.appendChild(inputGroup);
   return section;
 }
 
 function composeProcessorFromFields() {
   const core = (state.processorCore || '').trim();
-  const gen = (state.processorGeneration || '').trim();
   const number = (state.processorNumber || '').trim();
-  if (!core || !gen || !number) {
-    return null;
-  }
-  return `Intel Core ${core}-${number} (${gen})`;
+  const gen = (state.processorGeneration || '').trim();
+  return [core, number, gen].filter(Boolean).join(' ');
 }
 
 function buildProcessorSection() {
@@ -1748,82 +2038,50 @@ function buildProcessorSection() {
   const wrap = document.createElement('div');
   wrap.className = 'input-group';
 
-  const coreLabel = document.createElement('label');
-  coreLabel.textContent = t().labels.processorCore;
-  wrap.appendChild(coreLabel);
+  const badgeTextLabel = document.createElement('label');
+  badgeTextLabel.textContent = t().labels.processorBadgePrimary;
+  wrap.appendChild(badgeTextLabel);
 
-  const coreWrap = document.createElement('div');
-  coreWrap.className = 'options';
-  ['i3', 'i5', 'i7', 'i9'].forEach((value) => {
-    const btn = document.createElement('button');
-    btn.className = `tile ${state.processorCore === value ? 'active' : ''}`;
-    btn.textContent = value;
-    btn.addEventListener('click', () => {
-      state.processorCore = value;
-      const composed = composeProcessorFromFields();
-      if (composed) {
-        state.processor = composed;
-      }
-      renderControls();
-      drawPoster();
-    });
-    coreWrap.appendChild(btn);
-  });
-  wrap.appendChild(coreWrap);
-
-  const genLabel = document.createElement('label');
-  genLabel.textContent = t().labels.processorGeneration;
-  wrap.appendChild(genLabel);
-
-  const genSelect = document.createElement('select');
-  ['1st Gen', '2nd Gen', '3rd Gen', '4th Gen', '5th Gen', '6th Gen', '7th Gen', '8th Gen', '9th Gen', '10th Gen', '11th Gen', '12th Gen', '13th Gen', '14th Gen'].forEach((value) => {
-    const opt = document.createElement('option');
-    opt.value = value;
-    opt.textContent = value;
-    opt.selected = state.processorGeneration === value;
-    genSelect.appendChild(opt);
-  });
-  genSelect.addEventListener('change', (e) => {
-    state.processorGeneration = e.target.value;
-    const composed = composeProcessorFromFields();
-    if (composed) {
-      state.processor = composed;
-    }
+  const badgeTextInput = document.createElement('input');
+  badgeTextInput.type = 'text';
+  badgeTextInput.value = state.processorCore;
+  badgeTextInput.placeholder = t().labels.processorBadgePrimaryHint;
+  badgeTextInput.addEventListener('input', (e) => {
+    state.processorCore = e.target.value;
+    state.processor = composeProcessorFromFields();
     drawPoster();
   });
-  wrap.appendChild(genSelect);
+  wrap.appendChild(badgeTextInput);
 
   const numLabel = document.createElement('label');
-  numLabel.textContent = t().labels.processorNumber;
+  numLabel.textContent = t().labels.processorBadgeSecondary;
   wrap.appendChild(numLabel);
 
   const numInput = document.createElement('input');
   numInput.type = 'text';
   numInput.value = state.processorNumber;
-  numInput.placeholder = t().labels.processorNumberHint;
+  numInput.placeholder = t().labels.processorBadgeSecondaryHint;
   numInput.addEventListener('input', (e) => {
     state.processorNumber = e.target.value;
-    const composed = composeProcessorFromFields();
-    if (composed) {
-      state.processor = composed;
-    }
+    state.processor = composeProcessorFromFields();
     drawPoster();
   });
   wrap.appendChild(numInput);
 
-  const speedLabel = document.createElement('label');
-  speedLabel.textContent = t().labels.processorSpeed;
-  wrap.appendChild(speedLabel);
+  const genLabel = document.createElement('label');
+  genLabel.textContent = t().labels.processorBadgeTertiary;
+  wrap.appendChild(genLabel);
 
-  const speedInput = document.createElement('input');
-  speedInput.type = 'text';
-  speedInput.value = state.processorSpeed;
-  speedInput.placeholder = t().labels.processorSpeedHint;
-  speedInput.addEventListener('input', (e) => {
-    state.processorSpeed = e.target.value;
+  const genInput = document.createElement('input');
+  genInput.type = 'text';
+  genInput.value = state.processorGeneration;
+  genInput.placeholder = t().labels.processorBadgeTertiaryHint;
+  genInput.addEventListener('input', (e) => {
+    state.processorGeneration = e.target.value;
+    state.processor = composeProcessorFromFields();
     drawPoster();
   });
-  wrap.appendChild(speedInput);
+  wrap.appendChild(genInput);
 
   section.appendChild(wrap);
   return section;
@@ -1884,12 +2142,7 @@ function buildDeviceImageSection() {
         continue;
       }
       const chosenUrl = dataUrl;
-      const imageObj = new Image();
-      imageObj.src = chosenUrl;
-      await new Promise((resolve) => {
-        imageObj.onload = () => resolve();
-        imageObj.onerror = () => resolve();
-      });
+      const imageObj = await loadImageObject(chosenUrl);
       const box = getDeviceImageBoxRect();
       const maxBaseW = box.w * 0.55;
       const maxBaseH = box.h * 0.55;
@@ -1912,6 +2165,7 @@ function buildDeviceImageSection() {
       getCurrentDeviceImages().push(layer);
       setSelectedDeviceImageId(layer.id);
     }
+    state.sectionEnabled.image = true;
     statusText.textContent = t().statusReady;
     hiddenInput.value = '';
     drawPoster();
@@ -2000,13 +2254,8 @@ function buildChargerImageSection() {
         // eslint-disable-next-line no-continue
         continue;
       }
-      const imageObj = new Image();
-      imageObj.src = dataUrl;
       // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve) => {
-        imageObj.onload = () => resolve();
-        imageObj.onerror = () => resolve();
-      });
+      const imageObj = await loadImageObject(dataUrl);
       const box = getChargerImageBoxRect();
       const maxBaseW = box.w * 0.72;
       const maxBaseH = box.h * 0.72;
@@ -2029,6 +2278,7 @@ function buildChargerImageSection() {
       state.chargerImages.push(layer);
       state.selectedChargerImageId = layer.id;
     }
+    state.sectionEnabled.image = true;
     hiddenInput.value = '';
     drawPoster();
     renderControls();
@@ -2147,6 +2397,7 @@ function buildBadgesSection() {
   [
     ['showLogoBadge', t().labels.showLogoBadge],
     ['showIntelBadge', t().labels.showIntelBadge],
+    ['showScreenBadge', t().labels.screenSize],
     ['showBatteryBadge', t().labels.showBatteryBadge],
     ['showGuaranteeBadge', t().labels.showGuaranteeBadge],
   ].forEach(([key, label]) => {
@@ -2197,6 +2448,20 @@ function buildBadgesSection() {
     drawPoster();
   });
   wrap.appendChild(wifiInput);
+
+  const screenLabel = document.createElement('label');
+  screenLabel.textContent = t().labels.screenSize;
+  wrap.appendChild(screenLabel);
+
+  const screenInput = document.createElement('input');
+  screenInput.type = 'text';
+  screenInput.value = state.screenSize;
+  screenInput.placeholder = t().labels.screenSize;
+  screenInput.addEventListener('input', (e) => {
+    state.screenSize = e.target.value;
+    drawPoster();
+  });
+  wrap.appendChild(screenInput);
 
   section.appendChild(wrap);
   return section;
@@ -2275,6 +2540,125 @@ function buildBatterySection() {
   return section;
 }
 
+function buildSpecificationsSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.specifications;
+  section.appendChild(h3);
+
+  const inputGroup = document.createElement('div');
+  inputGroup.className = 'input-group';
+  const cards = Array.isArray(state.specCards) ? state.specCards : [];
+  cards.forEach((card, cardIndex) => {
+    const cardWrap = document.createElement('div');
+    cardWrap.className = 'section';
+    cardWrap.style.padding = '10px';
+    cardWrap.style.background = '#ffffff';
+
+    const titleLabel = document.createElement('label');
+    titleLabel.textContent = t().labels.cardTitle;
+    cardWrap.appendChild(titleLabel);
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.value = card.title || card.titleEn || card.titleFr || '';
+    titleInput.placeholder = t().labels.cardTitleHint;
+    titleInput.addEventListener('input', (e) => {
+      state.specCards[cardIndex].title = e.target.value;
+      drawPoster();
+    });
+    cardWrap.appendChild(titleInput);
+
+    const rows = Array.isArray(card.rows) ? card.rows : [];
+    rows.forEach((row, rowIndex) => {
+      const rowWrap = document.createElement('div');
+      rowWrap.className = 'section';
+      rowWrap.style.padding = '10px';
+      rowWrap.style.background = '#f8fbff';
+
+      const leftLabel = document.createElement('label');
+      leftLabel.textContent = t().labels.specLeft;
+      rowWrap.appendChild(leftLabel);
+
+      const leftInput = document.createElement('input');
+      leftInput.type = 'text';
+      leftInput.value = row.left || row.leftEn || row.leftFr || '';
+      leftInput.placeholder = t().labels.specLeftHint;
+      leftInput.addEventListener('input', (e) => {
+        state.specCards[cardIndex].rows[rowIndex].left = e.target.value;
+        drawPoster();
+      });
+      rowWrap.appendChild(leftInput);
+
+      const rightLabel = document.createElement('label');
+      rightLabel.textContent = t().labels.specRight;
+      rowWrap.appendChild(rightLabel);
+
+      const rightInput = document.createElement('input');
+      rightInput.type = 'text';
+      rightInput.value = row.right || row.rightEn || row.rightFr || '';
+      rightInput.placeholder = t().labels.specRightHint;
+      rightInput.addEventListener('input', (e) => {
+        state.specCards[cardIndex].rows[rowIndex].right = e.target.value;
+        drawPoster();
+      });
+      rowWrap.appendChild(rightInput);
+
+      const removeRowBtn = document.createElement('button');
+      removeRowBtn.type = 'button';
+      removeRowBtn.textContent = t().labels.removeSpecRow;
+      removeRowBtn.addEventListener('click', () => {
+        state.specCards[cardIndex].rows.splice(rowIndex, 1);
+        renderControls();
+        drawPoster();
+      });
+      rowWrap.appendChild(removeRowBtn);
+
+      cardWrap.appendChild(rowWrap);
+    });
+
+    const addRowBtn = document.createElement('button');
+    addRowBtn.type = 'button';
+    addRowBtn.textContent = t().labels.addSpecRow;
+    addRowBtn.addEventListener('click', () => {
+      state.specCards[cardIndex].rows.push({ left: '', right: '' });
+      renderControls();
+      drawPoster();
+    });
+    cardWrap.appendChild(addRowBtn);
+
+    const removeCardBtn = document.createElement('button');
+    removeCardBtn.type = 'button';
+    removeCardBtn.textContent = t().labels.removeSpecCard;
+    removeCardBtn.addEventListener('click', () => {
+      state.specCards.splice(cardIndex, 1);
+      renderControls();
+      drawPoster();
+    });
+    cardWrap.appendChild(removeCardBtn);
+
+    inputGroup.appendChild(cardWrap);
+  });
+
+  const addCardBtn = document.createElement('button');
+  addCardBtn.type = 'button';
+  addCardBtn.textContent = t().labels.addSpecCard;
+    addCardBtn.addEventListener('click', () => {
+      state.specCards.push({
+      title: 'Specifications',
+      rows: [],
+    });
+    renderControls();
+    drawPoster();
+  });
+  inputGroup.appendChild(addCardBtn);
+
+  section.appendChild(inputGroup);
+  return section;
+}
+
 function buildGuaranteeSection() {
   const section = document.createElement('section');
   section.className = 'section';
@@ -2286,6 +2670,20 @@ function buildGuaranteeSection() {
   const inputGroup = document.createElement('div');
   inputGroup.className = 'input-group';
   inputGroup.style.marginTop = '2px';
+
+  const textLabel = document.createElement('label');
+  textLabel.textContent = t().labels.guaranteeText;
+  inputGroup.appendChild(textLabel);
+
+  const textInput = document.createElement('input');
+  textInput.type = 'text';
+  textInput.value = state.guaranteeText;
+  textInput.placeholder = t().labels.guaranteeTextHint;
+  textInput.addEventListener('input', (e) => {
+    state.guaranteeText = e.target.value;
+    drawPoster();
+  });
+  inputGroup.appendChild(textInput);
 
   const periodLabel = document.createElement('label');
   periodLabel.textContent = t().labels.guaranteePeriod;
@@ -2385,24 +2783,16 @@ function renderControls() {
       'keyboard'
     )
   );
+  controlsPanel.appendChild(applySectionToggle(buildTitleBadgeSection(), 'titleBadge'));
   controlsPanel.appendChild(applySectionToggle(buildStorageSection(), 'storage'));
-  controlsPanel.appendChild(
-    applySectionToggle(
-      buildTilePlusInputSection(
-        labels.sections.brand,
-        'brand',
-        options.brand,
-        labels.labels.brand,
-        'HP / Dell / Apple...'
-      ),
-      'brand'
-    )
-  );
   controlsPanel.appendChild(
     applySectionToggle(
       buildProcessorSection(),
       'processor'
     )
+  );
+  controlsPanel.appendChild(
+    applySectionToggle(buildSpecificationsSection(), 'specifications')
   );
   controlsPanel.appendChild(
     applySectionToggle(buildBatterySection(), 'battery')
@@ -2455,42 +2845,73 @@ function drawTagIcon(x, y, icon, color) {
   ctx.restore();
 }
 
-function drawTag(x, y, w, h, color, textA, textB = '', textColor = '#fff', icon = '') {
-  drawRoundedRect(x, y, w, h, 16, color);
-  ctx.fillStyle = textColor;
+function drawTag(x, y, w, h, color, textA, textB = '', textColor = '#111111', icon = '', headerText = '') {
+  const outerColor = color || '#ff4f43';
+  const resolvedTextColor = '#111111';
   const leftPad = icon ? 46 : 14;
-  const rightPad = 12;
-  const textOffsetX = leftPad;
+  const rightPad = 14;
   const maxTextWidth = Math.max(40, w - leftPad - rightPad);
   const hasSecondLine = !!textB;
+  const titleText = String(headerText || textB || '').trim();
+  const outerPad = 8;
+  const captionH = titleText ? Math.max(30, Math.round(h * 0.28)) : outerPad;
+  const innerX = x + outerPad;
+  const captionY = y + outerPad;
+  const innerY = y + outerPad + captionH;
+  const innerW = w - (outerPad * 2);
+  const innerH = Math.max(32, h - captionH - (outerPad * 2));
+
+  drawRoundedRect(x, y, w, h, 8, outerColor);
+  drawRoundedRect(innerX, innerY, innerW, innerH, 5, '#f7fbff');
+
   if (icon) {
-    drawTagIcon(x + 8, y + 16, icon, textColor);
+    drawTagIcon(x + 8, y + 16, icon, resolvedTextColor);
   }
 
   if (hasSecondLine) {
-    const rawPrimarySize = fitText(String(textA), maxTextWidth, '600', 28, 15, 'Segoe UI');
-    const primarySize = Math.min(rawPrimarySize, Math.max(22, Math.round(h * 0.40)));
-    const rawSecondarySize = fitText(String(textB), maxTextWidth, '600', 19, 11, 'Segoe UI');
-    const secondaryCapByPrimary = Math.max(11, Math.round(primarySize * 0.64));
-    const secondarySize = Math.min(rawSecondarySize, secondaryCapByPrimary);
-    const topPad = Math.max(8, Math.round(h * 0.14));
-    const bottomPad = Math.max(8, Math.round(h * 0.14));
-    const lineGap = Math.max(3, Math.round(h * 0.05));
-    const totalTextHeight = primarySize + lineGap + secondarySize;
-    const startY = y + topPad + ((h - topPad - bottomPad - totalTextHeight) / 2) + primarySize;
-
-    ctx.font = `600 ${primarySize}px Segoe UI`;
-    ctx.fillText(String(textA), x + textOffsetX, startY);
-    ctx.font = `600 ${secondarySize}px Segoe UI`;
-    ctx.fillText(String(textB), x + textOffsetX, startY + lineGap + secondarySize);
-    return;
+    const innerText = headerText ? `${textA} ${textB}` : String(textA);
+    drawCenteredBadgeLines(innerText, innerX + 6, innerY + 6, innerW - 12, innerH - 12, resolvedTextColor, 25, 10, '700', 2);
+  } else {
+    drawCenteredBadgeLines(String(textA), innerX + 6, innerY + 6, innerW - 12, innerH - 12, resolvedTextColor, 25, 10, '700', 2);
   }
 
-  const rawSingleSize = fitText(String(textA), maxTextWidth, '600', 28, 15, 'Segoe UI');
-  const singleSize = Math.min(rawSingleSize, Math.max(22, Math.round(h * 0.42)));
-  const baselineY = y + ((h - singleSize) / 2) + singleSize;
-  ctx.font = `600 ${singleSize}px Segoe UI`;
-  ctx.fillText(String(textA), x + textOffsetX, baselineY);
+  if (titleText) {
+    drawCenteredBadgeLines(titleText.toUpperCase(), x + 8, captionY + 2, w - 16, captionH - 6, '#ffffff', 14, 9, 'bold', 1);
+  }
+}
+
+function getResponsiveTagHeight(w, textA, textB = '', headerText = '', icon = '') {
+  return w;
+}
+
+function getResponsiveProcessorBadgeMetrics(w, primaryText = '', secondaryText = '', tertiaryText = '', headerText = 'PROCESSOR') {
+  const leftPad = 14;
+  const rightPad = 14;
+  const maxTextWidth = Math.max(40, w - leftPad - rightPad);
+  const headerSize = fitText(String(headerText), maxTextWidth, 'bold', 11, 8, 'Segoe UI');
+  const primarySize = primaryText ? fitText(String(primaryText), maxTextWidth, '700', 28, 16, 'Segoe UI') : 0;
+  const secondarySize = secondaryText ? fitText(String(secondaryText), maxTextWidth, '600', 20, 11, 'Segoe UI') : 0;
+  const tertiarySize = tertiaryText ? fitText(String(tertiaryText), maxTextWidth, '600', 16, 10, 'Segoe UI') : 0;
+  const lineGap = 3;
+  const activeTextLines = [primarySize, secondarySize, tertiarySize].filter((size) => size > 0).length;
+  const totalTextHeight = primarySize + secondarySize + tertiarySize + (Math.max(0, activeTextLines - 1) * lineGap);
+  const headerTop = 8;
+  const headerGap = 8;
+  const contentTopPad = 8;
+  const contentBottomPad = 8;
+  const height = w;
+  return {
+    headerSize,
+    primarySize,
+    secondarySize,
+    tertiarySize,
+    lineGap,
+    headerTop,
+    headerGap,
+    contentTopPad,
+    contentBottomPad,
+    height,
+  };
 }
 
 function drawImageContain(img, x, y, w, h) {
@@ -2511,6 +2932,43 @@ function drawImageContain(img, x, y, w, h) {
   ctx.drawImage(img, dx, dy, drawW, drawH);
 }
 
+function drawImageCropContain(img, crop, x, y, w, h) {
+  const srcRatio = crop.w / crop.h;
+  const boxRatio = w / h;
+  let drawW = w;
+  let drawH = h;
+  let dx = x;
+  let dy = y;
+
+  if (srcRatio > boxRatio) {
+    drawH = w / srcRatio;
+    dy = y + (h - drawH) / 2;
+  } else {
+    drawW = h * srcRatio;
+    dx = x + (w - drawW) / 2;
+  }
+
+  ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, dx, dy, drawW, drawH);
+}
+
+function loadDefaultLaptopImage() {
+  defaultLaptopImageObj = new Image();
+  defaultLaptopImageObj.onload = () => drawPoster();
+  defaultLaptopImageObj.onerror = () => {
+    defaultLaptopImageObj = null;
+  };
+  defaultLaptopImageObj.src = DEFAULT_LAPTOP_IMAGE_SRC;
+}
+
+function loadDefaultPcImage() {
+  defaultPcImageObj = new Image();
+  defaultPcImageObj.onload = () => drawPoster();
+  defaultPcImageObj.onerror = () => {
+    defaultPcImageObj = null;
+  };
+  defaultPcImageObj.src = DEFAULT_PC_IMAGE_SRC;
+}
+
 function getDeviceImageBoxRect() {
   const cardX = 28;
   const cardY = 30;
@@ -2519,6 +2977,76 @@ function getDeviceImageBoxRect() {
   return state.type === 'Laptop'
     ? { x: cardX + 148 + deviceOffset.x, y: cardY + 220 + deviceOffset.y, w: 510, h: 360 }
     : { x: cardX + 140 + deviceOffset.x, y: cardY + 220 + deviceOffset.y, w: 560, h: 430 };
+}
+
+function getDefaultLaptopImageRect() {
+  const box = getDeviceImageBoxRect();
+  const size = normalizeBoxSize(state.defaultLaptopImageSize, DEFAULT_LAPTOP_IMAGE_SIZE);
+  return {
+    x: box.x,
+    y: box.y,
+    w: size.w,
+    h: size.h,
+  };
+}
+
+function getDefaultPcImageRect() {
+  const box = getDeviceImageBoxRect();
+  const size = normalizeBoxSize(state.defaultPcImageSize, DEFAULT_PC_IMAGE_SIZE);
+  return {
+    x: box.x,
+    y: box.y,
+    w: size.w,
+    h: size.h,
+  };
+}
+
+function isDefaultDeviceImageId(id) {
+  return id === DEFAULT_PC_IMAGE_ID || id === DEFAULT_LAPTOP_IMAGE_ID;
+}
+
+function getDefaultDeviceImageSize(id) {
+  return id === DEFAULT_PC_IMAGE_ID
+    ? normalizeBoxSize(state.defaultPcImageSize, DEFAULT_PC_IMAGE_SIZE)
+    : normalizeBoxSize(state.defaultLaptopImageSize, DEFAULT_LAPTOP_IMAGE_SIZE);
+}
+
+function setDefaultDeviceImageSize(id, size) {
+  if (id === DEFAULT_PC_IMAGE_ID) {
+    state.defaultPcImageSize = size;
+  } else {
+    state.defaultLaptopImageSize = size;
+  }
+}
+
+function drawDefaultDeviceImage(imageObj, crop, imageBox, id, isSelected) {
+  drawImageCropContain(imageObj, crop, imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+  const handleSize = 12;
+  let handle = null;
+  if (isSelected) {
+    ctx.save();
+    ctx.strokeStyle = '#0a84ff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+    ctx.restore();
+    handle = {
+      x: imageBox.x + imageBox.w - handleSize / 2,
+      y: imageBox.y + imageBox.h - handleSize / 2,
+      w: handleSize,
+      h: handleSize,
+    };
+    drawRoundedRect(handle.x, handle.y, handle.w, handle.h, 3, '#0a84ff');
+  }
+  deviceImageHandles.push({
+    id,
+    body: { x: imageBox.x, y: imageBox.y, w: imageBox.w, h: imageBox.h },
+    handle,
+    z: 0,
+  });
+  registerDraggableRegion('device', imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+  registerRemovableElement(imageBox.x, imageBox.y, imageBox.w, imageBox.h, () => {
+    state.sectionEnabled.type = false;
+  });
 }
 
 function drawDeviceImageLayers(box) {
@@ -2563,15 +3091,13 @@ function drawDeviceImageLayers(box) {
 }
 
 function drawProcessorLogoBadge(x, y, w, h, tierText, baseColor = null) {
-  const theme = themePalettes[state.theme] || themePalettes.Modern;
-  const bg = ctx.createLinearGradient(x, y, x + w, y + h);
-  const start = baseColor || theme.tag1;
-  bg.addColorStop(0, start);
-  bg.addColorStop(1, shadeHexColor(start, -0.32));
-  drawRoundedRect(x, y, w, h, 14, bg);
-  drawRoundedRect(x + 6, y + 6, w - 12, h - 12, 10, 'rgba(255,255,255,0.08)');
+  drawRoundedRect(x, y, w, h, 14, '#ffffff');
+  ctx.save();
+  ctx.lineWidth = 2;
+  drawRoundedRect(x, y, w, h, 14, null, '#111111');
+  ctx.restore();
 
-  ctx.fillStyle = '#eaf4ff';
+  ctx.fillStyle = '#111111';
   const leftPad = 12;
   const rightPad = 12;
   const headerText = 'PROCESSOR';
@@ -2772,6 +3298,241 @@ function drawBurst(cx, cy, spikes, outerRadius, innerRadius, fill) {
   ctx.fill();
 }
 
+function getGuaranteeBoxDefaultText() {
+  return state.lang === 'fr' ? 'TEXTE ICI' : 'YOUR TEXT HERE';
+}
+
+function getGuaranteeCaptionDefaultText() {
+  return state.lang === 'fr' ? '12 MOIS DE GARANTIE' : '12 MONTHS OF GUARANTEE';
+}
+
+function normalizeGuaranteeBoxText() {
+  const raw = String(state.guaranteeText || '').trim();
+  if (!raw || raw.toUpperCase() === 'YOUR TEXT HERE' || raw.toUpperCase() === 'TEXTE ICI') {
+    return getGuaranteeBoxDefaultText();
+  }
+  return raw;
+}
+
+function normalizeGuaranteeCaptionText() {
+  const raw = String(state.guaranteePeriod || '').trim();
+  if (
+    !raw
+    || raw.toUpperCase() === '12 MONTHS'
+    || raw.toUpperCase() === '12 MONTHS OF GUARANTEE'
+    || raw.toUpperCase() === '12 MOIS'
+    || raw.toUpperCase() === '12 MOIS DE GARANTIE'
+  ) {
+    return getGuaranteeCaptionDefaultText();
+  }
+  return raw;
+}
+
+function localizeSpecCardTitle(title) {
+  const raw = String(title || '').trim();
+  if (!raw) {
+    return t().specTitle;
+  }
+
+  const normalized = raw.toLowerCase();
+  const titleMap = {
+    specifications: { en: 'Specifications', fr: 'Caracteristiques' },
+    caracteristiques: { en: 'Specifications', fr: 'Caracteristiques' },
+    connectivity: { en: 'Connectivity', fr: 'Connectivite' },
+    connectivite: { en: 'Connectivity', fr: 'Connectivite' },
+    'power supply': { en: 'Power Supply', fr: 'Alimentation' },
+    alimentation: { en: 'Power Supply', fr: 'Alimentation' },
+    ports: { en: 'Ports', fr: 'Ports' },
+    display: { en: 'Display', fr: 'Affichage' },
+    affichage: { en: 'Display', fr: 'Affichage' },
+    storage: { en: 'Storage', fr: 'Stockage' },
+    stockage: { en: 'Storage', fr: 'Stockage' },
+    battery: { en: 'Battery', fr: 'Batterie' },
+    batterie: { en: 'Battery', fr: 'Batterie' },
+  };
+
+  const mapped = titleMap[normalized];
+  if (mapped) {
+    return state.lang === 'fr' ? mapped.fr : mapped.en;
+  }
+  return raw;
+}
+
+function localizeSpecRowText(text) {
+  const raw = String(text || '').trim();
+  if (!raw) {
+    return '';
+  }
+
+  const normalized = raw.toLowerCase();
+  const textMap = {
+    yes: { en: 'Yes', fr: 'Oui' },
+    oui: { en: 'Yes', fr: 'Oui' },
+    no: { en: 'No', fr: 'Non' },
+    non: { en: 'No', fr: 'Non' },
+    processor: { en: 'Processor', fr: 'Processeur' },
+    processeur: { en: 'Processor', fr: 'Processeur' },
+    generation: { en: 'Generation', fr: 'Generation' },
+    ram: { en: 'RAM', fr: 'RAM' },
+    harddrive: { en: 'Hard Drive', fr: 'Disque Dur' },
+    'hard drive': { en: 'Hard Drive', fr: 'Disque Dur' },
+    'disque dur': { en: 'Hard Drive', fr: 'Disque Dur' },
+    keyboardbacklight: { en: 'Keyboard Backlight', fr: 'Retroeclairage Clavier' },
+    'keyboard backlight': { en: 'Keyboard Backlight', fr: 'Retroeclairage Clavier' },
+    'retroeclairage clavier': { en: 'Keyboard Backlight', fr: 'Retroeclairage Clavier' },
+    usb: { en: 'USB', fr: 'USB' },
+    'wi-fi': { en: 'Wi-Fi', fr: 'Wi-Fi' },
+    wifi: { en: 'Wi-Fi', fr: 'Wi-Fi' },
+    battery: { en: 'Battery', fr: 'Batterie' },
+    batterie: { en: 'Battery', fr: 'Batterie' },
+    storage: { en: 'Storage', fr: 'Stockage' },
+    stockage: { en: 'Storage', fr: 'Stockage' },
+    screen: { en: 'Screen', fr: 'Ecran' },
+    ecran: { en: 'Screen', fr: 'Ecran' },
+    power: { en: 'Power', fr: 'Puissance' },
+    puissance: { en: 'Power', fr: 'Puissance' },
+    voltage: { en: 'Voltage', fr: 'Tension' },
+    tension: { en: 'Voltage', fr: 'Tension' },
+    connectivity: { en: 'Connectivity', fr: 'Connectivite' },
+    connectivite: { en: 'Connectivity', fr: 'Connectivite' },
+  };
+
+  const mapped = textMap[normalized];
+  if (mapped) {
+    return state.lang === 'fr' ? mapped.fr : mapped.en;
+  }
+  return raw;
+}
+
+function buildWrappedBadgeLines(text, maxWidth, fontSize, weight = 'bold', maxLines = 2) {
+  const normalized = String(text || '').trim().replace(/\s+/g, ' ');
+  if (!normalized) {
+    return [];
+  }
+  const words = normalized.split(' ');
+  ctx.save();
+  ctx.font = `${weight} ${fontSize}px Segoe UI`;
+  const lines = [];
+  let current = words[0] || '';
+  for (let i = 1; i < words.length; i += 1) {
+    const candidate = `${current} ${words[i]}`;
+    if (ctx.measureText(candidate).width <= maxWidth || !current) {
+      current = candidate;
+      continue;
+    }
+    lines.push(current);
+    current = words[i];
+  }
+  if (current) {
+    lines.push(current);
+  }
+  ctx.restore();
+  return lines;
+}
+
+function drawCenteredBadgeLines(text, x, y, w, h, color, maxSize, minSize, weight = 'bold', maxLines = 2) {
+  let lines = [];
+  let fontSize = minSize;
+
+  for (let size = maxSize; size >= minSize; size -= 1) {
+    const candidateLines = buildWrappedBadgeLines(text, w, size, weight, maxLines);
+    const lineGap = candidateLines.length > 1 ? Math.max(2, Math.round(size * 0.16)) : 0;
+    const blockHeight = (candidateLines.length * size) + ((candidateLines.length - 1) * lineGap);
+    ctx.save();
+    ctx.font = `${weight} ${size}px Segoe UI`;
+    const widestLine = candidateLines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
+    ctx.restore();
+    if (candidateLines.length <= maxLines && blockHeight <= h && widestLine <= w) {
+      lines = candidateLines;
+      fontSize = size;
+      break;
+    }
+  }
+
+  if (!lines.length) {
+    lines = buildWrappedBadgeLines(text, w, minSize, weight, maxLines).slice(0, maxLines);
+    fontSize = minSize;
+  }
+
+  const lineGap = lines.length > 1 ? Math.max(2, Math.round(fontSize * 0.16)) : 0;
+  const blockHeight = (lines.length * fontSize) + ((lines.length - 1) * lineGap);
+  let lineY = y + Math.max(0, ((h - blockHeight) / 2));
+
+  ctx.save();
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = color;
+  ctx.font = `${weight} ${fontSize}px Segoe UI`;
+  lines.forEach((line) => {
+    const lineWidth = ctx.measureText(line).width;
+    ctx.fillText(line, x + ((w - lineWidth) / 2), lineY);
+    lineY += fontSize + lineGap;
+  });
+  ctx.restore();
+}
+
+function drawResizeHandle(x, y, w, h, targetW, targetH, selected, minW, minH, rectRefSetter) {
+  if (!selected) {
+    rectRefSetter(null);
+    return;
+  }
+  const handleSize = 14;
+  const hitPad = 8;
+  const handleX = x + w - handleSize / 2;
+  const handleY = y + h - handleSize / 2;
+  drawRoundedRect(handleX, handleY, handleSize, handleSize, 3, '#0a84ff');
+  rectRefSetter({
+    x: handleX - hitPad,
+    y: handleY - hitPad,
+    w: handleSize + (hitPad * 2),
+    h: handleSize + (hitPad * 2),
+    targetW,
+    targetH,
+    minW,
+    minH,
+  });
+}
+
+function registerStackBadgeResizeHandle(key, x, y, w, h) {
+  stackBadgeRects.push({ key, x, y, w, h });
+  if (selectedStackBadgeKey !== key) {
+    return;
+  }
+  const handleSize = 12;
+  const hitPad = 8;
+  const handleX = x + w - handleSize / 2;
+  const handleY = y + h - handleSize / 2;
+  drawRoundedRect(handleX, handleY, handleSize, handleSize, 3, '#0a84ff');
+  stackBadgeResizeHandleRects.push({
+    key,
+    x: handleX - hitPad,
+    y: handleY - hitPad,
+    w: handleSize + (hitPad * 2),
+    h: handleSize + (hitPad * 2),
+    minW: 86,
+    minH: 86,
+  });
+}
+
+function findTopStackBadgeHandle(point) {
+  for (let i = stackBadgeResizeHandleRects.length - 1; i >= 0; i -= 1) {
+    const rect = stackBadgeResizeHandleRects[i];
+    if (pointInRect(point, rect)) {
+      return rect;
+    }
+  }
+  return null;
+}
+
+function findTopStackBadgeBody(point) {
+  for (let i = stackBadgeRects.length - 1; i >= 0; i -= 1) {
+    const rect = stackBadgeRects[i];
+    if (pointInRect(point, rect)) {
+      return rect;
+    }
+  }
+  return null;
+}
+
 function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
   const titleOffset = getLayoutOffset('storage');
   const titleText = (state.chargerTitle || 'FAST CHARGER').trim().toUpperCase();
@@ -2793,24 +3554,23 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
     const guaranteeOffset = getLayoutOffset('guarantee');
     const badgeX = cardX + 34 + guaranteeOffset.x;
     const badgeY = cardY + cardH - 186 + guaranteeOffset.y;
-    const badgeW = 126;
-    const badgeH = 150;
-    const periodText = (state.guaranteePeriod || '12 Months').toUpperCase();
-    const line1 = state.lang === 'fr' ? 'GARANTIE' : 'GUARANTEE';
+    const guaranteeBadgeSource = state.guaranteeBadgeSizeAdjusted ? state.guaranteeBadgeSize : DEFAULT_GUARANTEE_BADGE_SIZE;
+    const badgeW = Math.max(96, Number(guaranteeBadgeSource?.w) || DEFAULT_GUARANTEE_BADGE_SIZE.w);
+    const badgeH = Math.max(112, Number(guaranteeBadgeSource?.h) || DEFAULT_GUARANTEE_BADGE_SIZE.h);
+    const innerPad = Math.max(6, Math.round(badgeW * 0.05));
+    const topPanelH = Math.max(58, Math.round(badgeH * 0.60));
+    const boxText = normalizeGuaranteeBoxText().toUpperCase();
+    const captionText = normalizeGuaranteeCaptionText().toUpperCase();
+    guaranteeBadgeBodyRect = { x: badgeX, y: badgeY, w: badgeW, h: badgeH };
 
     drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 2, theme.burst);
     ctx.fillStyle = theme.osCardText;
-    ctx.fillRect(badgeX + 6, badgeY + 6, badgeW - 12, 90);
-    ctx.fillStyle = theme.burst;
-    const periodSize = fitText(periodText, 102, 'bold', 34, 10, 'Segoe UI');
-    ctx.font = `bold ${periodSize}px Segoe UI`;
-    const periodWidth = ctx.measureText(periodText).width;
-    ctx.fillText(periodText, badgeX + 6 + (114 - periodWidth) / 2, badgeY + 70);
-    ctx.fillStyle = theme.osCardText;
-    const lineSize = fitText(line1, 104, 'bold', 16, 10, 'Segoe UI');
-    ctx.font = `bold ${lineSize}px Segoe UI`;
-    const lineW = ctx.measureText(line1).width;
-    ctx.fillText(line1, badgeX + 6 + (114 - lineW) / 2, badgeY + 126);
+    ctx.fillRect(badgeX + innerPad, badgeY + innerPad, badgeW - (innerPad * 2), topPanelH);
+    drawCenteredBadgeLines(boxText, badgeX + innerPad + 8, badgeY + innerPad + 8, badgeW - ((innerPad + 8) * 2), topPanelH - 16, theme.burst, Math.max(18, Math.round(badgeW * 0.17)), 8, 'bold', 3);
+    drawCenteredBadgeLines(captionText, badgeX + innerPad + 8, badgeY + topPanelH + 10, badgeW - ((innerPad + 8) * 2), badgeH - topPanelH - 18, theme.osCardText, Math.max(11, Math.round(badgeW * 0.11)), 7, 'bold', 2);
+    drawResizeHandle(badgeX, badgeY, badgeW, badgeH, badgeW, badgeH, isGuaranteeBadgeSelected, 96, 112, (rect) => {
+      guaranteeBadgeResizeHandleRect = rect;
+    });
     registerDraggableRegion('guarantee', badgeX, badgeY, badgeW, badgeH);
     registerRemovableElement(badgeX, badgeY, badgeW, badgeH, () => {
       state.showGuaranteeBadge = false;
@@ -3015,8 +3775,10 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
     logoBadgeBodyRect = hasLogoImage ? null : { x: logoBadgeX, y: logoBadgeY, w: logoBadgeW, h: logoBadgeH };
 
     if (!hasLogoImage) {
-      drawRoundedRect(logoBadgeX, logoBadgeY, logoBadgeW, logoBadgeH, 12, theme.logoBadge);
-      drawRoundedRect(logoInnerX, logoInnerY, logoInnerW, logoInnerH, 8, '#f7fbff');
+      drawRoundedRect(logoBadgeX, logoBadgeY, logoBadgeW, logoBadgeH, 12, '#ffffff');
+      drawRoundedRect(logoBadgeX, logoBadgeY, logoBadgeW, logoBadgeH, 12, null, '#111111');
+      drawRoundedRect(logoInnerX, logoInnerY, logoInnerW, logoInnerH, 8, '#ffffff');
+      drawRoundedRect(logoInnerX, logoInnerY, logoInnerW, logoInnerH, 8, null, '#111111');
     }
     if (hasLogoImage) {
       const maxSize = Math.max(canvas.width, canvas.height) * 2;
@@ -3046,14 +3808,14 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
     } else {
       logoResizeHandleRect = null;
       logoImageBodyRect = null;
-      ctx.fillStyle = '#2f4f76';
+      ctx.fillStyle = '#111111';
       const logoText = 'LOGO';
       const topSize = fitText(logoText, logoInnerW - 18, 'bold', 38, 14, 'Segoe UI');
       ctx.font = `bold ${topSize}px Segoe UI`;
       const topW = ctx.measureText(logoText).width;
       const topY = logoInnerY + ((logoInnerH - topSize) / 2) + topSize;
       ctx.fillText(logoText, logoInnerX + (logoInnerW - topW) / 2, topY);
-      ctx.fillStyle = '#f2f8ff';
+      ctx.fillStyle = '#111111';
       const captionSize = fitText(logoText, logoBadgeW - 16, 'bold', 24, 12, 'Segoe UI');
       ctx.font = `bold ${captionSize}px Segoe UI`;
       const captionW = ctx.measureText(logoText).width;
@@ -3222,6 +3984,14 @@ function drawPoster() {
   removableElements = [];
   removeButtonRects = [];
   deviceImageHandles = [];
+  storageBadgeResizeHandleRect = null;
+  storageBadgeBodyRect = null;
+  osBadgeResizeHandleRect = null;
+  osBadgeBodyRect = null;
+  guaranteeBadgeResizeHandleRect = null;
+  guaranteeBadgeBodyRect = null;
+  stackBadgeRects = [];
+  stackBadgeResizeHandleRects = [];
   const w = canvas.width;
   const h = canvas.height;
   const theme = getActiveThemePalette();
@@ -3255,6 +4025,8 @@ function drawPoster() {
   ctx.strokeRect(cardX, cardY, cardW, cardH);
 
   if (state.generator === 'charger') {
+    isStorageBadgeSelected = false;
+    isOsBadgeSelected = false;
     drawChargerPoster(cardX, cardY, cardW, cardH, theme);
     drawCustomTextLayers();
     if (activeTextId) {
@@ -3270,38 +4042,57 @@ function drawPoster() {
     const osOffset = getLayoutOffset('os');
     const osX = cardX + 18 + osOffset.x;
     const osY = cardY + 18 + osOffset.y;
-    drawRoundedRect(osX, osY, 126, 150, 2, theme.osCard);
+    const osBadgeSource = state.osBadgeSizeAdjusted ? state.osBadgeSize : DEFAULT_OS_BADGE_SIZE;
+    const osBadgeW = Math.max(96, Number(osBadgeSource?.w) || DEFAULT_OS_BADGE_SIZE.w);
+    const osBadgeH = Math.max(112, Number(osBadgeSource?.h) || DEFAULT_OS_BADGE_SIZE.h);
+    const osInnerPad = Math.max(6, Math.round(osBadgeW * 0.05));
+    const osInnerW = osBadgeW - (osInnerPad * 2);
+    const osTopPanelH = Math.max(58, Math.round(osBadgeH * 0.60));
+    osBadgeBodyRect = { x: osX, y: osY, w: osBadgeW, h: osBadgeH };
+    drawRoundedRect(osX, osY, osBadgeW, osBadgeH, 2, theme.osCard);
     ctx.fillStyle = theme.osCardText;
-    ctx.fillRect(osX + 6, osY + 6, 114, 90);
+    ctx.fillRect(osX + osInnerPad, osY + osInnerPad, osInnerW, osTopPanelH);
     ctx.fillStyle = theme.osCard;
     const rawOsText = (state.os || '').trim();
     const osText = rawOsText.toLowerCase() === 'mac' ? 'macOS' : (rawOsText || 'Windows');
-    const osFontSize = fitText(osText, 102, 'bold', 34, 10, 'Segoe UI');
-    ctx.font = `bold ${osFontSize}px Segoe UI`;
-    const osTextWidth = ctx.measureText(osText).width;
-    const osTextX = osX + 6 + (114 - osTextWidth) / 2;
-    ctx.fillText(osText, osTextX, osY + 70);
+    drawCenteredBadgeLines(
+      osText,
+      osX + osInnerPad + 8,
+      osY + osInnerPad + 8,
+      osInnerW - 16,
+      osTopPanelH - 16,
+      theme.osCard,
+      Math.max(18, Math.round(osBadgeW * 0.22)),
+      10,
+      'bold',
+      3
+    );
     ctx.fillStyle = theme.osCardText;
     const osLine1 = state.lang === 'fr' ? 'Systeme' : 'Operating';
     const osLine2 = state.lang === 'fr' ? 'Exploitation' : 'System';
-    const osLine1Size = fitText(osLine1, 104, 'bold', 16, 10, 'Segoe UI');
-    const osLine2Size = fitText(osLine2, 104, 'bold', 16, 10, 'Segoe UI');
-    const osCaptionTop = osY + 94;
-    const osCaptionHeight = 54;
-    const osCaptionGap = 4;
-    const osCaptionTotal = osLine1Size + osCaptionGap + osLine2Size;
-    const osLine1Y = osCaptionTop + ((osCaptionHeight - osCaptionTotal) / 2) + osLine1Size;
-    const osLine2Y = osLine1Y + osCaptionGap + osLine2Size;
-    ctx.font = `bold ${osLine1Size}px Segoe UI`;
-    const osLine1Width = ctx.measureText(osLine1).width;
-    ctx.fillText(osLine1, osX + 6 + (114 - osLine1Width) / 2, osLine1Y);
-    ctx.font = `bold ${osLine2Size}px Segoe UI`;
-    const osLine2Width = ctx.measureText(osLine2).width;
-    ctx.fillText(osLine2, osX + 6 + (114 - osLine2Width) / 2, osLine2Y);
-    registerDraggableRegion('os', osX, osY, 126, 150);
-    registerRemovableElement(osX, osY, 126, 150, () => {
+    drawCenteredBadgeLines(
+      `${osLine1} ${osLine2}`,
+      osX + osInnerPad + 8,
+      osY + osTopPanelH + 8,
+      osInnerW - 16,
+      osBadgeH - osTopPanelH - 16,
+      theme.osCardText,
+      Math.max(11, Math.round(osBadgeW * 0.12)),
+      8,
+      'bold',
+      2
+    );
+    drawResizeHandle(osX, osY, osBadgeW, osBadgeH, osBadgeW, osBadgeH, isOsBadgeSelected, 96, 112, (rect) => {
+      osBadgeResizeHandleRect = rect;
+    });
+    registerDraggableRegion('os', osX, osY, osBadgeW, osBadgeH);
+    registerRemovableElement(osX, osY, osBadgeW, osBadgeH, () => {
       state.sectionEnabled.os = false;
     });
+  } else {
+    osBadgeBodyRect = null;
+    osBadgeResizeHandleRect = null;
+    isOsBadgeSelected = false;
   }
 
   const showTopGuarantee = state.sectionEnabled.badges !== false
@@ -3311,55 +4102,125 @@ function drawPoster() {
   const storageTitleX = (showTopGuarantee ? cardX + 300 : cardX + 182) + storageOffset.x;
   const storageTitleY = cardY + storageOffset.y;
 
-  if (state.sectionEnabled.storage !== false) {
-    const topTitle = (state.titleTop || '').trim() || state.storageType || 'SSD';
-    const bottomTitle = (state.titleBottom || '').trim() || (state.lang === 'fr' ? 'DISQUE DUR' : 'HARD DRIVE');
-    ctx.fillStyle = theme.title;
-    ctx.font = 'italic bold 68px Segoe UI';
-    ctx.fillText(topTitle, storageTitleX, storageTitleY + 88);
-    ctx.fillStyle = theme.subtitle;
-    ctx.font = 'bold 38px Segoe UI';
-    ctx.fillText(bottomTitle, storageTitleX + 2, storageTitleY + 128);
-    registerDraggableRegion('storage', storageTitleX - 8, storageTitleY + 22, 350, 120);
-    registerRemovableElement(storageTitleX - 8, storageTitleY + 22, 350, 120, () => {
-      state.sectionEnabled.storage = false;
+  if (state.sectionEnabled.titleBadge !== false) {
+    const topTitle = (state.titleTop || '').trim();
+    const bottomTitle = (state.titleBottom || '').trim();
+    const storageBadgeW = Math.max(220, Number(state.storageBadgeSize?.w) || 340);
+    const storageBadgeH = Math.max(82, Number(state.storageBadgeSize?.h) || 108);
+    const storageBadgeX = storageTitleX - 8;
+    const storageBadgeY = storageTitleY + 24;
+    storageBadgeBodyRect = { x: storageBadgeX, y: storageBadgeY, w: storageBadgeW, h: storageBadgeH };
+    const storageBadgeGrad = ctx.createLinearGradient(
+      storageBadgeX,
+      storageBadgeY,
+      storageBadgeX + storageBadgeW,
+      storageBadgeY + storageBadgeH
+    );
+    storageBadgeGrad.addColorStop(0, shadeHexColor(theme.tag4, 0.2));
+    storageBadgeGrad.addColorStop(0.5, theme.tag4);
+    storageBadgeGrad.addColorStop(1, shadeHexColor(theme.burst, 0.04));
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(255, 122, 24, 0.34)';
+    ctx.shadowBlur = 22;
+    ctx.shadowOffsetY = 10;
+    drawRoundedRect(storageBadgeX, storageBadgeY, storageBadgeW, storageBadgeH, 18, storageBadgeGrad);
+    ctx.restore();
+
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    drawRoundedRect(storageBadgeX + 1, storageBadgeY + 1, storageBadgeW - 2, storageBadgeH - 2, 17, null, 'rgba(255,255,255,0.5)');
+    ctx.restore();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    drawRoundedRect(storageBadgeX + 10, storageBadgeY + 10, storageBadgeW - 20, 28, 14, 'rgba(255,255,255,0.14)');
+
+    const topTitleSize = topTitle ? fitText(topTitle, storageBadgeW - 44, 'italic bold', 56, 20, 'Segoe UI') : 0;
+    const bottomTitleSize = bottomTitle ? fitText(bottomTitle, storageBadgeW - 50, 'bold', 26, 12, 'Segoe UI') : 0;
+    const lineGap = topTitle && bottomTitle ? Math.max(8, Math.round(storageBadgeH * 0.07)) : 0;
+    const totalTextHeight = topTitleSize + lineGap + bottomTitleSize;
+    const blockTop = storageBadgeY + ((storageBadgeH - totalTextHeight) / 2);
+
+    if (topTitle) {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `italic bold ${topTitleSize}px Segoe UI`;
+      const topTitleWidth = ctx.measureText(topTitle).width;
+      ctx.fillText(
+        topTitle,
+        storageBadgeX + (storageBadgeW - topTitleWidth) / 2,
+        blockTop + topTitleSize
+      );
+    }
+
+    if (bottomTitle) {
+      ctx.font = `700 ${bottomTitleSize}px Segoe UI`;
+      const bottomTitleWidth = ctx.measureText(bottomTitle).width;
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fillText(
+        bottomTitle,
+        storageBadgeX + (storageBadgeW - bottomTitleWidth) / 2,
+        blockTop + topTitleSize + lineGap + bottomTitleSize
+      );
+    }
+
+    if (isStorageBadgeSelected) {
+      const handleSize = 14;
+      const hitPad = 8;
+      const handleX = storageBadgeX + storageBadgeW - handleSize / 2;
+      const handleY = storageBadgeY + storageBadgeH - handleSize / 2;
+      drawRoundedRect(handleX, handleY, handleSize, handleSize, 3, '#0a84ff');
+      storageBadgeResizeHandleRect = {
+        x: handleX - hitPad,
+        y: handleY - hitPad,
+        w: handleSize + (hitPad * 2),
+        h: handleSize + (hitPad * 2),
+        minW: 220,
+        minH: 82,
+      };
+    } else {
+      storageBadgeResizeHandleRect = null;
+    }
+
+    registerDraggableRegion('storage', storageBadgeX, storageBadgeY, storageBadgeW, storageBadgeH);
+    registerRemovableElement(storageBadgeX, storageBadgeY, storageBadgeW, storageBadgeH, () => {
+      state.sectionEnabled.titleBadge = false;
     });
+  } else {
+    storageBadgeResizeHandleRect = null;
+    storageBadgeBodyRect = null;
+    isStorageBadgeSelected = false;
   }
 
   if (showTopGuarantee) {
     const guaranteeOffset = getLayoutOffset('guarantee');
     const badgeX = cardX + 154 + guaranteeOffset.x;
     const badgeY = cardY + 18 + guaranteeOffset.y;
-    const badgeW = 126;
-    const badgeH = 150;
-    const periodText = (state.guaranteePeriod || '12 Months').toUpperCase();
-    const guaranteeText = state.lang === 'fr' ? 'GARANTIE' : 'GUARANTEE';
+    const guaranteeBadgeSource = state.guaranteeBadgeSizeAdjusted ? state.guaranteeBadgeSize : DEFAULT_GUARANTEE_BADGE_SIZE;
+    const badgeW = Math.max(96, Number(guaranteeBadgeSource?.w) || DEFAULT_GUARANTEE_BADGE_SIZE.w);
+    const badgeH = Math.max(112, Number(guaranteeBadgeSource?.h) || DEFAULT_GUARANTEE_BADGE_SIZE.h);
+    const innerPad = Math.max(6, Math.round(badgeW * 0.05));
+    const topPanelH = Math.max(58, Math.round(badgeH * 0.60));
+    const boxText = normalizeGuaranteeBoxText().toUpperCase();
+    const captionText = normalizeGuaranteeCaptionText().toUpperCase();
+    guaranteeBadgeBodyRect = { x: badgeX, y: badgeY, w: badgeW, h: badgeH };
 
     drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 2, theme.burst);
     ctx.fillStyle = theme.osCardText;
-    ctx.fillRect(badgeX + 6, badgeY + 6, badgeW - 12, 90);
-
-    ctx.fillStyle = theme.burst;
-    const periodSize = fitText(periodText, 102, 'bold', 34, 10, 'Segoe UI');
-    ctx.font = `bold ${periodSize}px Segoe UI`;
-    const periodWidth = ctx.measureText(periodText).width;
-    const periodX = badgeX + 6 + (114 - periodWidth) / 2;
-    ctx.fillText(periodText, periodX, badgeY + 70);
-
-    ctx.fillStyle = theme.osCardText;
-    const line1 = state.lang === 'fr' ? 'GARANTIE' : 'GUARANTEE';
-    const line1Size = fitText(line1, 104, 'bold', 16, 10, 'Segoe UI');
-    const captionTop = badgeY + 94;
-    const captionHeight = 54;
-    const captionTotal = line1Size;
-    const line1Y = captionTop + ((captionHeight - captionTotal) / 2) + line1Size;
-    ctx.font = `bold ${line1Size}px Segoe UI`;
-    const line1Width = ctx.measureText(line1).width;
-    ctx.fillText(line1, badgeX + 6 + (114 - line1Width) / 2, line1Y);
+    ctx.fillRect(badgeX + innerPad, badgeY + innerPad, badgeW - (innerPad * 2), topPanelH);
+    drawCenteredBadgeLines(boxText, badgeX + innerPad + 8, badgeY + innerPad + 8, badgeW - ((innerPad + 8) * 2), topPanelH - 16, theme.burst, Math.max(18, Math.round(badgeW * 0.17)), 8, 'bold', 3);
+    drawCenteredBadgeLines(captionText, badgeX + innerPad + 8, badgeY + topPanelH + 10, badgeW - ((innerPad + 8) * 2), badgeH - topPanelH - 18, theme.osCardText, Math.max(11, Math.round(badgeW * 0.11)), 7, 'bold', 2);
+    drawResizeHandle(badgeX, badgeY, badgeW, badgeH, badgeW, badgeH, isGuaranteeBadgeSelected, 96, 112, (rect) => {
+      guaranteeBadgeResizeHandleRect = rect;
+    });
     registerDraggableRegion('guarantee', badgeX, badgeY, badgeW, badgeH);
     registerRemovableElement(badgeX, badgeY, badgeW, badgeH, () => {
       state.showGuaranteeBadge = false;
     });
+  } else {
+    guaranteeBadgeBodyRect = null;
+    guaranteeBadgeResizeHandleRect = null;
+    isGuaranteeBadgeSelected = false;
   }
 
   const showLogoBadge = state.sectionEnabled.badges !== false
@@ -3470,48 +4331,58 @@ function drawPoster() {
     });
   } else if (state.sectionEnabled.type !== false && state.type === 'Laptop') {
     deviceImageHandles = [];
-    const lx = cardX + 170 + deviceOffset.x;
-    const ly = cardY + 268 + deviceOffset.y;
-    drawRoundedRect(lx, ly, 420, 250, 12, theme.bodyDark);
-    drawRoundedRect(lx + 18, ly + 18, 384, 208, 8, theme.screenInner);
-    const lapGrad = ctx.createLinearGradient(lx + 18, ly + 18, lx + 402, ly + 226);
-    lapGrad.addColorStop(0, theme.screenGradA);
-    lapGrad.addColorStop(0.6, theme.screenGradB);
-    lapGrad.addColorStop(1, theme.screenGradC);
-    ctx.fillStyle = lapGrad;
-    ctx.fillRect(lx + 20, ly + 20, 380, 204);
-    drawRoundedRect(cardX + 140 + deviceOffset.x, cardY + 520 + deviceOffset.y, 480, 26, 10, theme.bodyLight);
-    registerDraggableRegion('device', cardX + 140 + deviceOffset.x, cardY + 268 + deviceOffset.y, 480, 278);
-    registerRemovableElement(cardX + 140 + deviceOffset.x, cardY + 268 + deviceOffset.y, 480, 278, () => {
-      state.sectionEnabled.type = false;
-    });
+    const imageBox = getDefaultLaptopImageRect();
+    if (defaultLaptopImageObj && defaultLaptopImageObj.complete) {
+      drawDefaultDeviceImage(defaultLaptopImageObj, DEFAULT_LAPTOP_IMAGE_CROP, imageBox, DEFAULT_LAPTOP_IMAGE_ID, isDefaultDeviceImageSelected);
+    } else {
+      const lx = cardX + 170 + deviceOffset.x;
+      const ly = cardY + 268 + deviceOffset.y;
+      drawRoundedRect(lx, ly, 420, 250, 12, theme.bodyDark);
+      drawRoundedRect(lx + 18, ly + 18, 384, 208, 8, theme.screenInner);
+      const lapGrad = ctx.createLinearGradient(lx + 18, ly + 18, lx + 402, ly + 226);
+      lapGrad.addColorStop(0, theme.screenGradA);
+      lapGrad.addColorStop(0.6, theme.screenGradB);
+      lapGrad.addColorStop(1, theme.screenGradC);
+      ctx.fillStyle = lapGrad;
+      ctx.fillRect(lx + 20, ly + 20, 380, 204);
+      drawRoundedRect(cardX + 140 + deviceOffset.x, cardY + 520 + deviceOffset.y, 480, 26, 10, theme.bodyLight);
+      registerDraggableRegion('device', cardX + 140 + deviceOffset.x, cardY + 268 + deviceOffset.y, 480, 278);
+      registerRemovableElement(cardX + 140 + deviceOffset.x, cardY + 268 + deviceOffset.y, 480, 278, () => {
+        state.sectionEnabled.type = false;
+      });
+    }
   } else if (state.sectionEnabled.type !== false) {
     deviceImageHandles = [];
     const dx = deviceOffset.x;
     const dy = deviceOffset.y;
-    drawRoundedRect(cardX + 164 + dx, cardY + 250 + dy, 175, 338, 6, theme.bodyDark);
-    drawRoundedRect(cardX + 178 + dx, cardY + 274 + dy, 146, 118, 4, theme.bodyMid);
-    drawRoundedRect(cardX + 182 + dx, cardY + 278 + dy, 138, 110, 4, theme.bodyLight);
-    drawRoundedRect(cardX + 188 + dx, cardY + 406 + dy, 126, 32, 4, '#e4e9f1');
-    drawRoundedRect(cardX + 188 + dx, cardY + 444 + dy, 126, 112, 4, theme.bodyLight);
+    const imageBox = getDefaultPcImageRect();
+    if (defaultPcImageObj && defaultPcImageObj.complete) {
+      drawDefaultDeviceImage(defaultPcImageObj, DEFAULT_PC_IMAGE_CROP, imageBox, DEFAULT_PC_IMAGE_ID, isDefaultDeviceImageSelected);
+    } else {
+      drawRoundedRect(cardX + 164 + dx, cardY + 250 + dy, 175, 338, 6, theme.bodyDark);
+      drawRoundedRect(cardX + 178 + dx, cardY + 274 + dy, 146, 118, 4, theme.bodyMid);
+      drawRoundedRect(cardX + 182 + dx, cardY + 278 + dy, 138, 110, 4, theme.bodyLight);
+      drawRoundedRect(cardX + 188 + dx, cardY + 406 + dy, 126, 32, 4, '#e4e9f1');
+      drawRoundedRect(cardX + 188 + dx, cardY + 444 + dy, 126, 112, 4, theme.bodyLight);
 
-    drawRoundedRect(cardX + 336 + dx, cardY + 252 + dy, 372, 302, 10, theme.screenOuter);
-    drawRoundedRect(cardX + 352 + dx, cardY + 270 + dy, 340, 262, 8, theme.screenInner);
-    const screenGrad = ctx.createLinearGradient(cardX + 352 + dx, cardY + 270 + dy, cardX + 692 + dx, cardY + 532 + dy);
-    screenGrad.addColorStop(0, theme.screenGradA);
-    screenGrad.addColorStop(0.5, theme.screenGradB);
-    screenGrad.addColorStop(1, theme.screenGradC);
-    ctx.fillStyle = screenGrad;
-    ctx.fillRect(cardX + 354 + dx, cardY + 272 + dy, 336, 258);
+      drawRoundedRect(cardX + 336 + dx, cardY + 252 + dy, 372, 302, 10, theme.screenOuter);
+      drawRoundedRect(cardX + 352 + dx, cardY + 270 + dy, 340, 262, 8, theme.screenInner);
+      const screenGrad = ctx.createLinearGradient(cardX + 352 + dx, cardY + 270 + dy, cardX + 692 + dx, cardY + 532 + dy);
+      screenGrad.addColorStop(0, theme.screenGradA);
+      screenGrad.addColorStop(0.5, theme.screenGradB);
+      screenGrad.addColorStop(1, theme.screenGradC);
+      ctx.fillStyle = screenGrad;
+      ctx.fillRect(cardX + 354 + dx, cardY + 272 + dy, 336, 258);
 
-    drawRoundedRect(cardX + 474 + dx, cardY + 572 + dy, 92, 20, 8, theme.standA);
-    drawRoundedRect(cardX + 438 + dx, cardY + 594 + dy, 164, 18, 8, theme.standB);
-    drawRoundedRect(cardX + 376 + dx, cardY + 664 + dy, 286, 18, 5, theme.base);
-    drawRoundedRect(cardX + 680 + dx, cardY + 652 + dy, 66, 32, 16, theme.mouse);
-    registerDraggableRegion('device', cardX + 164 + dx, cardY + 250 + dy, 582, 434);
-    registerRemovableElement(cardX + 164 + dx, cardY + 250 + dy, 582, 434, () => {
-      state.sectionEnabled.type = false;
-    });
+      drawRoundedRect(cardX + 474 + dx, cardY + 572 + dy, 92, 20, 8, theme.standA);
+      drawRoundedRect(cardX + 438 + dx, cardY + 594 + dy, 164, 18, 8, theme.standB);
+      drawRoundedRect(cardX + 376 + dx, cardY + 664 + dy, 286, 18, 5, theme.base);
+      drawRoundedRect(cardX + 680 + dx, cardY + 652 + dy, 66, 32, 16, theme.mouse);
+      registerDraggableRegion('device', cardX + 164 + dx, cardY + 250 + dy, 582, 434);
+      registerRemovableElement(cardX + 164 + dx, cardY + 250 + dy, 582, 434, () => {
+        state.sectionEnabled.type = false;
+      });
+    }
   }
 
   const procParts = state.processor.split(' ');
@@ -3520,42 +4391,54 @@ function drawPoster() {
 
   const tagsOffset = getLayoutOffset('tags');
   const tagsX = cardX + cardW - 180 + tagsOffset.x;
-  const tagW = 154;
+  const defaultTagW = DEFAULT_STACK_BADGE_SIZE.w;
   const tagsStartY = cardY + 188 + tagsOffset.y;
   let tagY = tagsStartY;
-  const tagGap = 12;
+  const tagGap = 10;
   let tagsBottom = tagsStartY;
+  let tagsMaxW = defaultTagW;
 
-  if (state.sectionEnabled.processor !== false && state.showIntelBadge) {
-    const badgeH = 78;
-    const tier = (state.processorCore || state.processor.match(/i[3579]/i)?.[0] || 'i5').toUpperCase();
-    drawProcessorLogoBadge(tagsX, tagY, tagW, badgeH, tier, theme.tag1);
+  if (state.sectionEnabled.processor !== false && state.showIntelBadge && (state.processor || '').trim()) {
+    const processorBadgeSize = getStackBadgeSize('processor');
+    const tagW = processorBadgeSize.w;
+    const processorPrimary = (state.processorCore || '').trim();
+    const processorSecondary = (state.processorNumber || '').trim();
+    const processorTertiary = (state.processorGeneration || '').trim();
+    const headerText = state.lang === 'fr' ? 'PROCESSEUR' : 'PROCESSOR';
+    const processorMetrics = getResponsiveProcessorBadgeMetrics(
+      tagW,
+      processorPrimary,
+      processorSecondary,
+      processorTertiary,
+      headerText
+    );
+    const badgeH = processorBadgeSize.h;
+    const outerPad = 8;
+    const captionH = Math.max(30, Math.round(badgeH * 0.28));
+    const innerX = tagsX + outerPad;
+    const captionY = tagY + outerPad;
+    const innerY = tagY + outerPad + captionH;
+    const innerW = tagW - (outerPad * 2);
+    const innerH = Math.max(32, badgeH - captionH - (outerPad * 2));
+    const processorContent = [processorPrimary, processorSecondary, processorTertiary].filter(Boolean).join(' ');
+
+    drawRoundedRect(tagsX, tagY, tagW, badgeH, 8, theme.tag1);
+    drawRoundedRect(innerX, innerY, innerW, innerH, 5, '#f7fbff');
+    drawCenteredBadgeLines(processorContent, innerX + 6, innerY + 6, innerW - 12, innerH - 12, '#111111', 25, 10, '700', 2);
+    drawCenteredBadgeLines(headerText, tagsX + 8, captionY + 2, tagW - 16, captionH - 6, '#ffffff', 14, 9, 'bold', 1);
+
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showIntelBadge = false;
     });
-    tagsBottom = tagY + badgeH;
-    tagY += badgeH + tagGap;
-  }
-  if (state.sectionEnabled.processor !== false && state.showProcessorSpeedBadge && (state.processorSpeed || '').trim()) {
-    const badgeH = 74;
-    drawTag(
-      tagsX,
-      tagY,
-      tagW,
-      badgeH,
-      shadeHexColor(theme.tag1, 0.12),
-      (state.processorSpeed || '').trim(),
-      state.lang === 'fr' ? 'VITESSE CPU' : 'CPU SPEED',
-      '#fff'
-    );
-    registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
-      state.showProcessorSpeedBadge = false;
-    });
+    registerStackBadgeResizeHandle('processor', tagsX, tagY, tagW, badgeH);
+    tagsMaxW = Math.max(tagsMaxW, tagW);
     tagsBottom = tagY + badgeH;
     tagY += badgeH + tagGap;
   }
   if (state.sectionEnabled.badges !== false && state.showScreenBadge && (state.screenSize || '').trim()) {
-    const badgeH = 74;
+    const screenBadgeSize = getStackBadgeSize('screen');
+    const tagW = screenBadgeSize.w;
+    const badgeH = screenBadgeSize.h;
     drawTag(
       tagsX,
       tagY,
@@ -3563,17 +4446,23 @@ function drawPoster() {
       badgeH,
       shadeHexColor(theme.tag2, 0.08),
       (state.screenSize || '').trim(),
-      state.lang === 'fr' ? 'ECRAN' : 'SCREEN',
-      '#fff'
+      '',
+      '#111111',
+      '',
+      state.lang === 'fr' ? 'ECRAN' : 'SCREEN'
     );
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showScreenBadge = false;
     });
+    registerStackBadgeResizeHandle('screen', tagsX, tagY, tagW, badgeH);
+    tagsMaxW = Math.max(tagsMaxW, tagW);
     tagsBottom = tagY + badgeH;
     tagY += badgeH + tagGap;
   }
   if (state.sectionEnabled.badges !== false && state.sectionEnabled.battery !== false && state.showBatteryBadge) {
-    const badgeH = 78;
+    const batteryBadgeSize = getStackBadgeSize('battery');
+    const tagW = batteryBadgeSize.w;
+    const badgeH = batteryBadgeSize.h;
     drawTag(
       tagsX,
       tagY,
@@ -3581,17 +4470,23 @@ function drawPoster() {
       badgeH,
       theme.batteryBadge,
       getBatteryPercentLabel(),
-      state.lang === 'fr' ? 'BATTERIE' : 'BATTERY',
-      '#fff'
+      '',
+      '#111111',
+      '',
+      state.lang === 'fr' ? 'BATTERIE' : 'BATTERY'
     );
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showBatteryBadge = false;
     });
+    registerStackBadgeResizeHandle('battery', tagsX, tagY, tagW, badgeH);
+    tagsMaxW = Math.max(tagsMaxW, tagW);
     tagsBottom = tagY + badgeH;
     tagY += badgeH + tagGap;
   }
   if (state.sectionEnabled.storage !== false && state.showStorageBadge) {
-    const badgeH = 78;
+    const storageStackBadgeSize = getStackBadgeSize('storage');
+    const tagW = storageStackBadgeSize.w;
+    const badgeH = storageStackBadgeSize.h;
     drawTag(
       tagsX,
       tagY,
@@ -3599,16 +4494,24 @@ function drawPoster() {
       badgeH,
       theme.tag4,
       state.storageSize.replace(' ', ''),
-      state.storageType
+      state.storageType,
+      '#111111',
+      '',
+      state.lang === 'fr' ? 'DISQUE DUR' : 'HARD DRIVE'
     );
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showStorageBadge = false;
     });
+    registerStackBadgeResizeHandle('storage', tagsX, tagY, tagW, badgeH);
+    tagsMaxW = Math.max(tagsMaxW, tagW);
     tagsBottom = tagY + badgeH;
     tagY += badgeH + tagGap;
   }
   if (state.sectionEnabled.ram !== false && state.showRamBadge) {
-    const badgeH = 78;
+    const ramStackBadgeSize = getStackBadgeSize('ram');
+    const tagW = ramStackBadgeSize.w;
+    const ramBadgeSubtext = (state.ramType || '').trim();
+    const badgeH = ramStackBadgeSize.h;
     drawTag(
       tagsX,
       tagY,
@@ -3616,121 +4519,115 @@ function drawPoster() {
       badgeH,
       theme.tag5,
       state.ram.replace(' ', ''),
-      t().memory,
-      theme.tag5Text
+      ramBadgeSubtext,
+      '#111111',
+      '',
+      'RAM'
     );
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showRamBadge = false;
     });
+    registerStackBadgeResizeHandle('ram', tagsX, tagY, tagW, badgeH);
+    tagsMaxW = Math.max(tagsMaxW, tagW);
     tagsBottom = tagY + badgeH;
   }
   registerDraggableRegion(
     'tags',
     tagsX,
     tagsStartY,
-    tagW,
+    tagsMaxW,
     Math.max(78, tagsBottom - tagsStartY)
   );
 
-  if (state.sectionEnabled.processor !== false) {
+  if (state.sectionEnabled.specifications !== false) {
     const specOffset = getLayoutOffset('spec');
-    const specX = cardX + 34 + specOffset.x;
-    const specY = cardY + cardH - 350 + specOffset.y;
-    const specW = 296;
-    const specH = 284;
-    drawRoundedRect(specX, specY, specW, specH, 14, theme.specOuter);
-    const specInnerGrad = ctx.createLinearGradient(specX + 6, specY + 6, specX + specW - 6, specY + specH - 6);
-    specInnerGrad.addColorStop(0, theme.specInnerA);
-    specInnerGrad.addColorStop(1, theme.specInnerB);
-    drawRoundedRect(specX + 6, specY + 6, specW - 12, specH - 12, 12, specInnerGrad);
+    const specCards = Array.isArray(state.specCards) ? state.specCards : [];
+    let specX = cardX + 34 + specOffset.x;
+    let specY = cardY + cardH - 350 + specOffset.y;
+    let totalSpecWidth = 0;
+    let totalSpecHeight = 0;
 
-    const rowH = 30;
-    const rowStartY = specY + 50;
-    const lineY = rowStartY + 2;
-    drawRoundedRect(specX + 16, lineY, specW - 32, 1, 0, theme.specDivider);
-    drawRoundedRect(specX + 16, lineY + rowH, specW - 32, 1, 0, theme.specDivider);
-    drawRoundedRect(specX + 16, lineY + rowH * 2, specW - 32, 1, 0, theme.specDivider);
-    drawRoundedRect(specX + 16, lineY + rowH * 3, specW - 32, 1, 0, theme.specDivider);
-    drawRoundedRect(specX + 16, lineY + rowH * 4, specW - 32, 1, 0, theme.specDivider);
-    drawRoundedRect(specX + 16, lineY + rowH * 5, specW - 32, 1, 0, theme.specDivider);
-    drawRoundedRect(specX + 16, lineY + rowH * 6, specW - 32, 1, 0, theme.specDivider);
+    specCards.forEach((card) => {
+      const titleSource = card.title || card.titleEn || card.titleFr || '';
+      const title = localizeSpecCardTitle(titleSource);
+      const rows = Array.isArray(card.rows)
+        ? card.rows.filter((row) => {
+          const left = localizeSpecRowText(row.left || row.leftEn || row.leftFr || '');
+          const right = localizeSpecRowText(row.right || row.rightEn || row.rightFr || '');
+          return left || right;
+        })
+        : [];
 
-    ctx.fillStyle = theme.specValue;
-    ctx.font = 'bold 16px Segoe UI';
-    ctx.fillText(t().specTitle.toUpperCase(), specX + 20, specY + 32);
+      ctx.font = 'bold 16px Segoe UI';
+      const titleWidth = ctx.measureText(title.toUpperCase()).width;
+      let maxLabelWidth = 0;
+      let maxValueWidth = 0;
 
-    const labelX = specX + 20;
-    const valueX = specX + 178;
-    const labelColW = valueX - labelX - 10;
-    const valueColW = specX + specW - 20 - valueX;
+      rows.forEach((row) => {
+        const left = localizeSpecRowText(row.left || row.leftEn || row.leftFr || '');
+        const right = localizeSpecRowText(row.right || row.rightEn || row.rightFr || '');
+        ctx.font = 'bold 14px Segoe UI';
+        maxLabelWidth = Math.max(maxLabelWidth, ctx.measureText(left || ' ').width);
+        ctx.font = 'bold 15px Segoe UI';
+        maxValueWidth = Math.max(maxValueWidth, ctx.measureText(right || ' ').width);
+      });
 
-    ctx.fillStyle = theme.specLabel;
-    const textBaseY = rowStartY + 24;
-    const specLabels = [
-      t().labels.processor,
-      t().specGeneration,
-      'RAM',
-      t().specHardDrive,
-      t().specKeyboard,
-      t().specUsb,
-      t().specWifi,
-    ];
-    specLabels.forEach((label, idx) => {
-      const size = fitText(label, labelColW, 'bold', 14, 11, 'Segoe UI');
-      ctx.font = `bold ${size}px Segoe UI`;
-      ctx.fillText(label, labelX, textBaseY + rowH * idx);
+      const rowH = 30;
+      const hasRows = rows.length > 0;
+      const visibleRows = Math.max(1, rows.length);
+      const specW = Math.max(220, Math.min(420, Math.ceil(Math.max(titleWidth + 40, maxLabelWidth + maxValueWidth + 68))));
+      const specH = hasRows ? Math.max(92, 62 + (visibleRows * rowH)) : 66;
+
+      drawRoundedRect(specX, specY, specW, specH, 14, theme.specOuter);
+      const specInnerGrad = ctx.createLinearGradient(specX + 6, specY + 6, specX + specW - 6, specY + specH - 6);
+      specInnerGrad.addColorStop(0, theme.specInnerA);
+      specInnerGrad.addColorStop(1, theme.specInnerB);
+      drawRoundedRect(specX + 6, specY + 6, specW - 12, specH - 12, 12, specInnerGrad);
+
+      const rowStartY = specY + 50;
+      if (hasRows) {
+        const lineY = rowStartY + 2;
+        for (let i = 0; i < Math.max(0, visibleRows - 1); i += 1) {
+          drawRoundedRect(specX + 16, lineY + rowH * i, specW - 32, 1, 0, theme.specDivider);
+        }
+      }
+
+      ctx.fillStyle = theme.specValue;
+      ctx.font = 'bold 16px Segoe UI';
+      ctx.fillText(title.toUpperCase(), specX + 20, hasRows ? specY + 32 : specY + 38);
+
+      const labelX = specX + 20;
+      const valueX = specX + Math.max(120, Math.round(specW * 0.56));
+      const labelColW = valueX - labelX - 10;
+      const valueColW = specX + specW - 20 - valueX;
+      const textBaseY = rowStartY + 24;
+
+      rows.forEach((row, idx) => {
+        const left = localizeSpecRowText(row.left || row.leftEn || row.leftFr || '') || ' ';
+        const right = localizeSpecRowText(row.right || row.rightEn || row.rightFr || '') || ' ';
+        ctx.fillStyle = theme.specLabel;
+        const labelSize = fitText(left, labelColW, 'bold', 14, 11, 'Segoe UI');
+        ctx.font = `bold ${labelSize}px Segoe UI`;
+        ctx.fillText(left, labelX, textBaseY + rowH * idx);
+        ctx.fillStyle = theme.specValue;
+        const valueSize = fitText(right, valueColW, 'bold', 15, 11, 'Segoe UI');
+        ctx.font = `bold ${valueSize}px Segoe UI`;
+        ctx.fillText(right, valueX, textBaseY + rowH * idx);
+      });
+
+      registerDraggableRegion('spec', specX, specY, specW, specH);
+      registerRemovableElement(specX, specY, specW, specH, () => {
+        state.sectionEnabled.specifications = false;
+      });
+
+      totalSpecWidth = Math.max(totalSpecWidth, specW);
+      totalSpecHeight = (specY + specH) - (cardY + cardH - 350 + specOffset.y);
+      specY += specH + 18;
     });
 
-    const coreLabel = (state.processorCore || 'i5').toLowerCase();
-    const numberLabel = normalizeProcessorNumber(state.processorNumber);
-    const procChip = numberLabel ? `${coreLabel}-${numberLabel}` : coreLabel;
-    const genLabel = state.processorGeneration || parseGenerationLabel(state.processor);
-    const driveLabel = `${state.storageSize} ${state.storageType}`.trim();
-    const keyboardLabel = t().keyboardBacklightValues[state.keyboardBacklight] || state.keyboardBacklight || '';
-    const usbLabel = localizeBinarySpec(state.usbSpec);
-    const wifiLabel = localizeBinarySpec(state.wifiSpec);
-
-    ctx.fillStyle = theme.specValue;
-    const procSize = fitText(procChip, valueColW, 'bold', 15, 11, 'Segoe UI');
-    ctx.font = `bold ${procSize}px Segoe UI`;
-    ctx.fillText(procChip, valueX, textBaseY);
-    const genSize = fitText(genLabel, valueColW, 'bold', 15, 11, 'Segoe UI');
-    ctx.font = `bold ${genSize}px Segoe UI`;
-    ctx.fillText(genLabel, valueX, textBaseY + rowH);
-    const ramValue = `${state.ram} ${state.ramType || ''}`.trim();
-    const ramSize = fitText(ramValue, valueColW, 'bold', 15, 11, 'Segoe UI');
-    ctx.font = `bold ${ramSize}px Segoe UI`;
-    ctx.fillText(ramValue, valueX, textBaseY + rowH * 2);
-    const driveSize = fitText(driveLabel, valueColW, 'bold', 15, 11, 'Segoe UI');
-    ctx.font = `bold ${driveSize}px Segoe UI`;
-    ctx.fillText(driveLabel, valueX, textBaseY + rowH * 3);
-    const keyboardSize = fitText(keyboardLabel, valueColW, 'bold', 15, 11, 'Segoe UI');
-    ctx.font = `bold ${keyboardSize}px Segoe UI`;
-    ctx.fillText(keyboardLabel, valueX, textBaseY + rowH * 4);
-    const usbSize = fitText(usbLabel, valueColW, 'bold', 15, 11, 'Segoe UI');
-    ctx.font = `bold ${usbSize}px Segoe UI`;
-    ctx.fillText(usbLabel, valueX, textBaseY + rowH * 5);
-    const wifiSize = fitText(wifiLabel, valueColW, 'bold', 15, 11, 'Segoe UI');
-    ctx.font = `bold ${wifiSize}px Segoe UI`;
-    ctx.fillText(wifiLabel, valueX, textBaseY + rowH * 6);
-    registerDraggableRegion('spec', specX, specY, specW, specH);
-    registerRemovableElement(specX, specY, specW, specH, () => {
-      state.sectionEnabled.processor = false;
-    });
-  }
-
-  if (state.sectionEnabled.brand !== false) {
-    const brandOffset = getLayoutOffset('brand');
-    ctx.fillStyle = theme.brand;
-    ctx.font = 'bold 36px Segoe UI';
-    const safeBrand = (state.brand || 'Brand').toUpperCase();
-    const brandX = cardX + 20 + brandOffset.x;
-    const brandY = cardY + cardH - 18 + brandOffset.y;
-    ctx.fillText(safeBrand, brandX, brandY);
-    registerDraggableRegion('brand', brandX - 4, brandY - 36, 240, 48);
-    registerRemovableElement(brandX - 4, brandY - 36, 240, 48, () => {
-      state.sectionEnabled.brand = false;
-    });
+    if (specCards.length > 1) {
+      registerDraggableRegion('spec', cardX + 34 + specOffset.x, cardY + cardH - 350 + specOffset.y, totalSpecWidth, totalSpecHeight);
+    }
   }
 
   const priceParts = splitPriceDisplay();
@@ -4018,12 +4915,38 @@ canvas.addEventListener('mousedown', (event) => {
   const logoBadgeHandleHit = pointInRect(p, logoBadgeResizeHandleRect);
   const logoBadgeHit = pointInRect(p, logoBadgeBodyRect);
   const logoBodyHit = pointInRect(p, logoImageBodyRect);
+  const storageBadgeHandleHit = pointInRect(p, storageBadgeResizeHandleRect);
+  const storageBadgeHit = pointInRect(p, storageBadgeBodyRect);
+  const osBadgeHandleHit = pointInRect(p, osBadgeResizeHandleRect);
+  const osBadgeHit = pointInRect(p, osBadgeBodyRect);
+  const guaranteeBadgeHandleHit = pointInRect(p, guaranteeBadgeResizeHandleRect);
+  const guaranteeBadgeHit = pointInRect(p, guaranteeBadgeBodyRect);
+  const stackBadgeHandleHit = findTopStackBadgeHandle(p);
+  const stackBadgeHit = findTopStackBadgeBody(p);
   const draggableHit = findTopDraggableRegion(p);
   const handleHit = findTopDeviceImageHandle(p);
   if (handleHit) {
+    if (isDefaultDeviceImageId(handleHit.id)) {
+      const currentSize = getDefaultDeviceImageSize(handleHit.id);
+      isDefaultDeviceImageSelected = true;
+      isResizingDeviceImage = true;
+      resizingDeviceImageId = handleHit.id;
+      deviceResizeStart = {
+        x: p.x,
+        y: p.y,
+        w: currentSize.w,
+        h: currentSize.h,
+        ratio: currentSize.w / Math.max(1, currentSize.h),
+      };
+      canvas.style.cursor = 'nwse-resize';
+      drawPoster();
+      event.preventDefault();
+      return;
+    }
     const layer = getCurrentInteractiveImages().find((img) => img.id === handleHit.id);
     if (layer) {
       setSelectedInteractiveImageId(layer.id);
+      renderControls();
       isResizingDeviceImage = true;
       resizingDeviceImageId = layer.id;
       deviceResizeStart = {
@@ -4041,9 +4964,25 @@ canvas.addEventListener('mousedown', (event) => {
 
   const imageHit = findTopDeviceImageBody(p);
   if (imageHit) {
+    if (isDefaultDeviceImageId(imageHit.id)) {
+      isDefaultDeviceImageSelected = true;
+      const current = getLayoutOffset('device');
+      activeDrag = {
+        key: 'device',
+        startX: p.x,
+        startY: p.y,
+        baseX: current.x,
+        baseY: current.y,
+      };
+      canvas.style.cursor = 'grabbing';
+      drawPoster();
+      event.preventDefault();
+      return;
+    }
     const layer = getCurrentInteractiveImages().find((img) => img.id === imageHit.id);
     if (layer) {
       setSelectedInteractiveImageId(layer.id);
+      renderControls();
       isDraggingDeviceImage = true;
       draggingDeviceImageId = layer.id;
       const box = state.generator === 'charger' ? getChargerImageBoxRect() : getDeviceImageBoxRect();
@@ -4056,19 +4995,117 @@ canvas.addEventListener('mousedown', (event) => {
   }
 
   const hadSelectedDeviceImage = !!getSelectedInteractiveImageId();
+  const hadDefaultDeviceImageSelected = isDefaultDeviceImageSelected;
+  const keepDefaultDeviceImageSelected = isDefaultDeviceImageId(handleHit?.id) || isDefaultDeviceImageId(imageHit?.id) || draggableHit?.key === 'device';
   const keepLogoSelected = logoHandleHit || logoBadgeHandleHit || logoBodyHit || logoBadgeHit || draggableHit?.key === 'logo';
   const shouldUnselectLogo = isLogoSelected && !keepLogoSelected;
   const shouldSelectLogo = !isLogoSelected && (logoBodyHit || logoHandleHit || logoBadgeHandleHit || logoBadgeHit);
+  const keepStorageSelected = storageBadgeHandleHit || storageBadgeHit || draggableHit?.key === 'storage';
+  const shouldUnselectStorage = isStorageBadgeSelected && !keepStorageSelected;
+  const shouldSelectStorage = !isStorageBadgeSelected && (storageBadgeHit || storageBadgeHandleHit);
+  const keepOsSelected = osBadgeHandleHit || osBadgeHit || draggableHit?.key === 'os';
+  const shouldUnselectOs = isOsBadgeSelected && !keepOsSelected;
+  const shouldSelectOs = !isOsBadgeSelected && (osBadgeHit || osBadgeHandleHit);
+  const keepGuaranteeSelected = guaranteeBadgeHandleHit || guaranteeBadgeHit || draggableHit?.key === 'guarantee';
+  const shouldUnselectGuarantee = isGuaranteeBadgeSelected && !keepGuaranteeSelected;
+  const shouldSelectGuarantee = !isGuaranteeBadgeSelected && (guaranteeBadgeHit || guaranteeBadgeHandleHit);
+  const shouldSelectStackBadge = !!(stackBadgeHit || stackBadgeHandleHit);
+  const shouldUnselectStackBadge = selectedStackBadgeKey && !shouldSelectStackBadge && draggableHit?.key !== 'tags';
   if (hadSelectedDeviceImage) {
     setSelectedInteractiveImageId(null);
+  }
+  if (hadDefaultDeviceImageSelected && !keepDefaultDeviceImageSelected) {
+    isDefaultDeviceImageSelected = false;
   }
   if (shouldUnselectLogo) {
     isLogoSelected = false;
   } else if (shouldSelectLogo) {
     isLogoSelected = true;
   }
-  if (hadSelectedDeviceImage || shouldUnselectLogo || shouldSelectLogo) {
+  if (shouldUnselectStorage) {
+    isStorageBadgeSelected = false;
+  } else if (shouldSelectStorage) {
+    isStorageBadgeSelected = true;
+  }
+  if (shouldUnselectOs) {
+    isOsBadgeSelected = false;
+  } else if (shouldSelectOs) {
+    isOsBadgeSelected = true;
+  }
+  if (shouldUnselectGuarantee) {
+    isGuaranteeBadgeSelected = false;
+  } else if (shouldSelectGuarantee) {
+    isGuaranteeBadgeSelected = true;
+  }
+  if (shouldSelectStackBadge) {
+    selectedStackBadgeKey = (stackBadgeHandleHit || stackBadgeHit).key;
+  } else if (shouldUnselectStackBadge) {
+    selectedStackBadgeKey = null;
+  }
+  if (hadSelectedDeviceImage || (hadDefaultDeviceImageSelected && !keepDefaultDeviceImageSelected) || shouldUnselectLogo || shouldSelectLogo || shouldUnselectStorage || shouldSelectStorage || shouldUnselectOs || shouldSelectOs || shouldUnselectGuarantee || shouldSelectGuarantee || shouldSelectStackBadge || shouldUnselectStackBadge) {
     drawPoster();
+  }
+
+  if (stackBadgeHandleHit) {
+    const currentSize = getStackBadgeSize(stackBadgeHandleHit.key);
+    isResizingStackBadge = true;
+    stackBadgeResizeStart = {
+      key: stackBadgeHandleHit.key,
+      x: p.x,
+      y: p.y,
+      w: currentSize.w,
+      h: currentSize.h,
+      minW: stackBadgeHandleHit.minW || 86,
+      minH: stackBadgeHandleHit.minH || 86,
+    };
+    canvas.style.cursor = 'nwse-resize';
+    event.preventDefault();
+    return;
+  }
+
+  if (osBadgeHandleHit && osBadgeResizeHandleRect) {
+    isResizingOsBadge = true;
+    osBadgeResizeStart = {
+      x: p.x,
+      y: p.y,
+      w: Number(state.osBadgeSize?.w) || DEFAULT_OS_BADGE_SIZE.w,
+      h: Number(state.osBadgeSize?.h) || DEFAULT_OS_BADGE_SIZE.h,
+      minW: osBadgeResizeHandleRect.minW || 96,
+      minH: osBadgeResizeHandleRect.minH || 112,
+    };
+    canvas.style.cursor = 'nwse-resize';
+    event.preventDefault();
+    return;
+  }
+
+  if (guaranteeBadgeHandleHit && guaranteeBadgeResizeHandleRect) {
+    isResizingGuaranteeBadge = true;
+    guaranteeBadgeResizeStart = {
+      x: p.x,
+      y: p.y,
+      w: Number(state.guaranteeBadgeSize?.w) || DEFAULT_GUARANTEE_BADGE_SIZE.w,
+      h: Number(state.guaranteeBadgeSize?.h) || DEFAULT_GUARANTEE_BADGE_SIZE.h,
+      minW: guaranteeBadgeResizeHandleRect.minW || 96,
+      minH: guaranteeBadgeResizeHandleRect.minH || 112,
+    };
+    canvas.style.cursor = 'nwse-resize';
+    event.preventDefault();
+    return;
+  }
+
+  if (storageBadgeHandleHit && storageBadgeResizeHandleRect) {
+    isResizingStorageBadge = true;
+    storageBadgeResizeStart = {
+      x: p.x,
+      y: p.y,
+      w: Number(state.storageBadgeSize?.w) || 340,
+      h: Number(state.storageBadgeSize?.h) || 108,
+      minW: storageBadgeResizeHandleRect.minW || 220,
+      minH: storageBadgeResizeHandleRect.minH || 82,
+    };
+    canvas.style.cursor = 'nwse-resize';
+    event.preventDefault();
+    return;
   }
 
   if (!logoResizeHandleRect || !logoImageObj || !logoImageObj.complete) {
@@ -4162,6 +5199,18 @@ canvas.addEventListener('mousemove', (event) => {
   }
 
   if (isResizingDeviceImage && deviceResizeStart) {
+    if (isDefaultDeviceImageId(resizingDeviceImageId)) {
+      const delta = Math.max(p.x - deviceResizeStart.x, p.y - deviceResizeStart.y);
+      const nextW = Math.max(120, deviceResizeStart.w + delta);
+      const nextH = Math.max(90, nextW / Math.max(0.1, deviceResizeStart.ratio));
+      setDefaultDeviceImageSize(resizingDeviceImageId, {
+        w: Math.round(nextW),
+        h: Math.round(nextH),
+      });
+      drawPoster();
+      canvas.style.cursor = 'nwse-resize';
+      return;
+    }
     const layer = getCurrentInteractiveImages().find((img) => img.id === resizingDeviceImageId);
     if (!layer) {
       return;
@@ -4217,11 +5266,76 @@ canvas.addEventListener('mousemove', (event) => {
     return;
   }
 
+  if (isResizingStorageBadge && storageBadgeResizeStart) {
+    const dx = p.x - storageBadgeResizeStart.x;
+    const dy = p.y - storageBadgeResizeStart.y;
+    const nextW = Math.max(storageBadgeResizeStart.minW, Math.round(storageBadgeResizeStart.w + dx));
+    const nextH = Math.max(storageBadgeResizeStart.minH, Math.round(storageBadgeResizeStart.h + dy));
+    state.storageBadgeSize = { w: nextW, h: nextH };
+    drawPoster();
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+
+  if (isResizingStackBadge && stackBadgeResizeStart) {
+    const dx = p.x - stackBadgeResizeStart.x;
+    const dy = p.y - stackBadgeResizeStart.y;
+    const nextW = Math.max(stackBadgeResizeStart.minW, Math.round(stackBadgeResizeStart.w + dx));
+    const nextH = Math.max(stackBadgeResizeStart.minH, Math.round(stackBadgeResizeStart.h + dy));
+    state.stackBadgeSizes = {
+      ...(state.stackBadgeSizes || cloneDefaultStackBadgeSizes()),
+      [stackBadgeResizeStart.key]: { w: nextW, h: nextH },
+    };
+    drawPoster();
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+
+  if (isResizingOsBadge && osBadgeResizeStart) {
+    const dx = p.x - osBadgeResizeStart.x;
+    const dy = p.y - osBadgeResizeStart.y;
+    const nextW = Math.max(osBadgeResizeStart.minW, Math.round(osBadgeResizeStart.w + dx));
+    const nextH = Math.max(osBadgeResizeStart.minH, Math.round(osBadgeResizeStart.h + dy));
+    state.osBadgeSize = { w: nextW, h: nextH };
+    state.osBadgeSizeAdjusted = true;
+    drawPoster();
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+
+  if (isResizingGuaranteeBadge && guaranteeBadgeResizeStart) {
+    const dx = p.x - guaranteeBadgeResizeStart.x;
+    const dy = p.y - guaranteeBadgeResizeStart.y;
+    const nextW = Math.max(guaranteeBadgeResizeStart.minW, Math.round(guaranteeBadgeResizeStart.w + dx));
+    const nextH = Math.max(guaranteeBadgeResizeStart.minH, Math.round(guaranteeBadgeResizeStart.h + dy));
+    state.guaranteeBadgeSize = { w: nextW, h: nextH };
+    state.guaranteeBadgeSizeAdjusted = true;
+    drawPoster();
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+
   if (pointInRect(p, logoResizeHandleRect)) {
     canvas.style.cursor = 'nwse-resize';
     return;
   }
   if (pointInRect(p, logoBadgeResizeHandleRect)) {
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+  if (pointInRect(p, storageBadgeResizeHandleRect)) {
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+  if (pointInRect(p, osBadgeResizeHandleRect)) {
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+  if (pointInRect(p, guaranteeBadgeResizeHandleRect)) {
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+  if (findTopStackBadgeHandle(p)) {
     canvas.style.cursor = 'nwse-resize';
     return;
   }
@@ -4255,6 +5369,16 @@ canvas.addEventListener('dblclick', (event) => {
 });
 
 window.addEventListener('mouseup', () => {
+  const shouldPersistLayout = !!(
+    activeDrag
+    || isDefaultDeviceImageId(resizingDeviceImageId)
+    || isResizingLogo
+    || isResizingLogoBadge
+    || isResizingStorageBadge
+    || isResizingStackBadge
+    || isResizingOsBadge
+    || isResizingGuaranteeBadge
+  );
   isResizingDeviceImage = false;
   resizingDeviceImageId = null;
   deviceResizeStart = null;
@@ -4265,11 +5389,22 @@ window.addEventListener('mouseup', () => {
   logoResizeStart = null;
   isResizingLogoBadge = false;
   logoBadgeResizeStart = null;
+  isResizingStorageBadge = false;
+  storageBadgeResizeStart = null;
+  isResizingStackBadge = false;
+  stackBadgeResizeStart = null;
+  isResizingOsBadge = false;
+  osBadgeResizeStart = null;
+  isResizingGuaranteeBadge = false;
+  guaranteeBadgeResizeStart = null;
   activeDrag = null;
   isDraggingText = false;
   draggingTextId = null;
   textDragStart = null;
   canvas.style.cursor = 'default';
+  if (shouldPersistLayout) {
+    persistLayoutPreferences();
+  }
 });
 
 window.addEventListener('keydown', (event) => {
@@ -4317,9 +5452,6 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
-    if (typingInField && !isTextInsertMode) {
-      return;
-    }
     event.preventDefault();
     selectAllElementsMode = !selectAllElementsMode;
     drawPoster();
@@ -4333,22 +5465,50 @@ window.addEventListener('keydown', (event) => {
 
 document.addEventListener('mousedown', (event) => {
   const clickedEditor = !!(textEditorRoot && textEditorRoot.contains(event.target));
+  let shouldRedraw = false;
   if (!clickedEditor && event.target !== canvas && activeTextId) {
     activeTextId = null;
     hideTextEditor();
-    drawPoster();
+    shouldRedraw = true;
   }
   if (selectAllElementsMode && event.target !== canvas) {
     selectAllElementsMode = false;
-    drawPoster();
+    shouldRedraw = true;
+  }
+  if (event.target !== canvas && isStorageBadgeSelected) {
+    isStorageBadgeSelected = false;
+    shouldRedraw = true;
+  }
+  if (event.target !== canvas && isOsBadgeSelected) {
+    isOsBadgeSelected = false;
+    shouldRedraw = true;
+  }
+  if (event.target !== canvas && isGuaranteeBadgeSelected) {
+    isGuaranteeBadgeSelected = false;
+    shouldRedraw = true;
+  }
+  if (event.target !== canvas && selectedStackBadgeKey) {
+    selectedStackBadgeKey = null;
+    shouldRedraw = true;
+  }
+  if (event.target !== canvas && isDefaultDeviceImageSelected) {
+    isDefaultDeviceImageSelected = false;
+    shouldRedraw = true;
   }
   if (!isLogoSelected) {
+    if (shouldRedraw) {
+      drawPoster();
+    }
     return;
   }
   if (event.target === canvas) {
+    if (shouldRedraw) {
+      drawPoster();
+    }
     return;
   }
   isLogoSelected = false;
+  shouldRedraw = true;
   drawPoster();
 });
 
@@ -4431,6 +5591,8 @@ document.getElementById('btnGenerateJpg').addEventListener('click', () => genera
 resetLayoutToDefault();
 setUiLanguage();
 renderControls();
+loadDefaultPcImage();
+loadDefaultLaptopImage();
 drawPoster();
 
 

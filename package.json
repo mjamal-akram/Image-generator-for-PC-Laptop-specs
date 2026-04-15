@@ -4,7 +4,8 @@
   "description": "Desktop app for generating PC/Laptop spec posters in English and French",
   "main": "main.js",
   "scripts": {
-    "dev": "nodemon main.js"
+    "start": "electron .",
+    "dev": "electron ."
   },
   "devDependencies": {
     "electron": "^31.7.7",
