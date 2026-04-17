@@ -1,14 +1,19 @@
 ﻿const DEFAULT_LAYOUT_OFFSETS = {
-  os: { x: -2, y: 810 },
-  storage: { x: -275, y: -12 },
-  guarantee: { x: 22, y: 810 },
-  logo: { x: -5, y: 3 },
-  device: { x: 47, y: -61 },
-  tags: { x: -6, y: 22 },
-  spec: { x: -20, y: -98 },
+  os: { x: 14, y: 224 },
+  storage: { x: -264, y: -2 },
+  guarantee: { x: -122, y: 444 },
+  logo: { x: 0, y: 8 },
+  device: { x: 132, y: -44 },
+  tags: { x: 10, y: 8 },
+  spec: { x: -4, y: 18 },
   brand: { x: 394, y: -884 },
-  price: { x: 6, y: -202 },
-  contact: { x: 0, y: 0 },
+  price: { x: -206, y: -208 },
+  contact: { x: -215, y: 36 },
+  diffHeader: { x: 0, y: 0 },
+  diffLeftPromo: { x: 0, y: 0 },
+  diffWarranty: { x: 0, y: 0 },
+  diffEco: { x: 0, y: 0 },
+  diffBottomBadges: { x: 0, y: 0 },
   chargerCompatibility: { x: 0, y: 0 },
 };
 
@@ -27,6 +32,11 @@ const DEFAULT_LAPTOP_IMAGE_SRC = 'assets/default-laptop.png';
 const DEFAULT_LAPTOP_IMAGE_CROP = { x: 130, y: 260, w: 940, h: 670 };
 const DEFAULT_LAPTOP_IMAGE_ID = '__default_laptop_image__';
 const DEFAULT_LAPTOP_IMAGE_SIZE = { w: 510, h: 360 };
+const WALLPAPER_RESOLUTIONS = [
+  { value: '1920x1080', label: 'Full HD 1920 x 1080' },
+  { value: '2560x1440', label: 'QHD 2560 x 1440' },
+  { value: '3840x2160', label: '4K UHD 3840 x 2160' },
+];
 
 function cloneDefaultLayoutOffsets() {
   return Object.fromEntries(
@@ -87,6 +97,9 @@ function readSavedLayoutPreferences() {
 }
 
 function persistLayoutPreferences() {
+  if (exportDesignSession) {
+    return;
+  }
   try {
     window.localStorage?.setItem(
       LAYOUT_PREFERENCES_STORAGE_KEY,
@@ -111,7 +124,7 @@ function persistLayoutPreferences() {
 
 function resetLayoutToDefault() {
   const saved = readSavedLayoutPreferences();
-  state.layoutOffsets = cloneDefaultLayoutOffsets();
+  state.layoutOffsets = saved?.layoutOffsets || cloneDefaultLayoutOffsets();
   state.logoSize = saved?.logoSize || DEFAULT_LOGO_SIZE;
   state.logoBadgeSize = saved?.logoBadgeSize || { ...DEFAULT_LOGO_BADGE_SIZE };
   state.storageBadgeSize = saved?.storageBadgeSize || { ...DEFAULT_STORAGE_BADGE_SIZE };
@@ -133,6 +146,7 @@ function resetLayoutToDefault() {
   state.sectionEnabled.price = true;
   state.sectionEnabled.contact = true;
   state.sectionEnabled.badges = true;
+  state.sectionEnabled.diffFormat = true;
   state.showIntelBadge = true;
   state.showScreenBadge = true;
   state.showBatteryBadge = true;
@@ -191,6 +205,18 @@ const state = {
   chargerCondition: 'New',
   chargerCompatibility: 'Dell Latitude 5490',
   price: '',
+  diffOldPrice: '899',
+  diffModelTitle: 'LATITUDE 5400',
+  diffPromoLead: 'TESTED ON',
+  diffPromoValue: '50',
+  diffPromoTail: 'POINTS OF CONTROL',
+  diffPromoBadge: 'REFURBISHED IN FRANCE',
+  diffWarrantyNumber: '1',
+  diffWarrantyUnit: 'YEAR',
+  diffWarrantyTitle: 'GUARANTEE',
+  diffWarrantySubtitle: 'Parts and Labor',
+  diffEcoLead: 'COMMITTED TO',
+  diffEcoHighlight: 'THE ENVIRONMENT',
   currency: 'USD',
   showIntelBadge: true,
   showProcessorSpeedBadge: true,
@@ -251,6 +277,7 @@ const state = {
     price: true,
     contact: true,
     badges: true,
+    diffFormat: true,
   },
 };
 
@@ -284,10 +311,12 @@ const i18n = {
       price: 'Price',
       contact: 'Contact',
       badges: 'Badge Visibility',
+      diffFormat: 'Diff Format Content',
     },
     labels: {
       generatorDevice: 'PC/Laptop',
       generatorCharger: 'Charger',
+      generatorDiff: 'Diff Format',
       storageType: 'Drive Type',
       titleTop: 'Top Title Text',
       titleTopHint: 'Example: SSD',
@@ -324,17 +353,19 @@ const i18n = {
       osCustom: 'Custom OS Name',
       osHint: 'Type custom value (example: Ubuntu)',
       batteryHealth: 'Battery Status',
-      batteryPercentage: 'Battery Percentage',
-      batteryPercentageHint: 'Example: 85',
+      batteryPercentage: 'Battery Text',
+      batteryPercentageHint: 'Example: 85% or Good',
       cardTitle: 'Title',
       cardTitleHint: 'Example: Specifications',
       specLeft: 'Left Text',
       specLeftHint: 'Example: USB',
       specRight: 'Right Text',
       specRightHint: 'Example: Yes',
-      addSpecCard: 'Add Info Card',
-      removeSpecCard: 'Remove Card',
-      addSpecRow: 'Add Specification Row',
+      specLine: 'Text Line',
+      specLineHint: 'Example: USB WiFi LAN WAN',
+      addSpecCard: 'Add Section',
+      removeSpecCard: 'Remove Section',
+      addSpecRow: 'Add Line',
       removeSpecRow: 'Remove Row',
       guaranteeText: 'Guarantee Box Text',
       guaranteeTextHint: 'Example: Original Product',
@@ -350,6 +381,7 @@ const i18n = {
       removeContactRow: 'Remove Field',
       contactPhone: 'Phone',
       contactEmail: 'Email',
+      contactWebsite: 'Website',
       contactAddress: 'Address',
       uploadImage: 'Upload PC/Laptop Image',
       uploadChargerImage: 'Upload Charger Image',
@@ -363,7 +395,10 @@ const i18n = {
       clearLogo: 'Remove Logo',
       logoHint: 'After upload, drag the logo handle on preview to resize.',
       showIntelBadge: 'Processor Badge',
+      showScreenBadge: 'Screen Badge',
       showBatteryBadge: 'Battery Badge',
+      showStorageBadge: 'Storage Badge',
+      showRamBadge: 'RAM Badge',
       showGuaranteeBadge: 'Guarantee Badge',
       showLogoBadge: 'Logo Badge',
       chargerTitle: 'Title Text',
@@ -380,6 +415,30 @@ const i18n = {
       chargerConditionHint: 'Example: New',
       chargerCompatibility: 'Compatibility',
       chargerCompatibilityHint: 'One model per line (example: Dell Latitude 5490)',
+      diffModelTitle: 'Model Title',
+      diffModelTitleHint: 'Example: LATITUDE 5400',
+      diffPromoLead: 'Left Promo Line 1',
+      diffPromoLeadHint: 'Example: TESTED ON',
+      diffPromoValue: 'Left Promo Highlight',
+      diffPromoValueHint: 'Example: 50',
+      diffPromoTail: 'Left Promo Line 2',
+      diffPromoTailHint: 'Example: POINTS OF CONTROL',
+      diffPromoBadge: 'Left Promo Badge',
+      diffPromoBadgeHint: 'Example: REFURBISHED IN FRANCE',
+      diffWarrantyNumber: 'Warranty Number',
+      diffWarrantyNumberHint: 'Example: 1',
+      diffWarrantyUnit: 'Warranty Unit',
+      diffWarrantyUnitHint: 'Example: YEAR',
+      diffWarrantyTitle: 'Warranty Title',
+      diffWarrantyTitleHint: 'Example: GUARANTEE',
+      diffWarrantySubtitle: 'Warranty Subtitle',
+      diffWarrantySubtitleHint: 'Example: Parts and Labor',
+      diffEcoLead: 'Eco Line 1',
+      diffEcoLeadHint: 'Example: COMMITTED TO',
+      diffEcoHighlight: 'Eco Line 2',
+      diffEcoHighlightHint: 'Example: THE ENVIRONMENT',
+      diffOldPrice: 'Old Price',
+      diffOldPriceHint: 'Example: 899',
     },
     statusReady: 'Ready to generate.',
     statusGenerating: 'Generating image...',
@@ -448,10 +507,12 @@ const i18n = {
       price: 'Prix',
       contact: 'Contact',
       badges: 'Visibilite Des Badges',
+      diffFormat: 'Contenu Format Diff',
     },
     labels: {
       generatorDevice: 'PC/Portable',
       generatorCharger: 'Chargeur',
+      generatorDiff: 'Format Diff',
       storageType: 'Type De Disque',
       titleTop: 'Texte Titre Haut',
       titleTopHint: 'Exemple: SSD',
@@ -488,16 +549,18 @@ const i18n = {
       osCustom: 'Nom OS Personnalise',
       osHint: 'Saisir une valeur (exemple: Ubuntu)',
       batteryHealth: 'Etat Batterie',
-      batteryPercentage: 'Pourcentage Batterie',
-      batteryPercentageHint: 'Exemple: 85',
+      batteryPercentage: 'Texte Batterie',
+      batteryPercentageHint: 'Exemple: 85% ou Bon',
       cardTitle: 'Titre',
       cardTitleHint: 'Exemple: Caracteristiques',
       specLeft: 'Texte Gauche',
       specLeftHint: 'Exemple: USB',
       specRight: 'Texte Droite',
       specRightHint: 'Exemple: Oui',
-      addSpecCard: 'Ajouter Une Carte',
-      removeSpecCard: 'Supprimer Carte',
+      specLine: 'Ligne De Texte',
+      specLineHint: 'Exemple: USB WiFi LAN WAN',
+      addSpecCard: 'Ajouter Une Section',
+      removeSpecCard: 'Supprimer Section',
       addSpecRow: 'Ajouter Une Ligne',
       removeSpecRow: 'Supprimer Ligne',
       guaranteeText: 'Texte Dans Le Badge Garantie',
@@ -514,6 +577,7 @@ const i18n = {
       removeContactRow: 'Supprimer Champ',
       contactPhone: 'Telephone',
       contactEmail: 'Email',
+      contactWebsite: 'Site Web',
       contactAddress: 'Adresse',
       uploadImage: 'Telecharger Image PC/Portable',
       uploadChargerImage: 'Telecharger Image Chargeur',
@@ -527,7 +591,10 @@ const i18n = {
       clearLogo: 'Supprimer Logo',
       logoHint: 'Apres upload, faites glisser la poignee du logo pour redimensionner.',
       showIntelBadge: 'Badge Processeur',
+      showScreenBadge: 'Badge Ecran',
       showBatteryBadge: 'Badge Batterie',
+      showStorageBadge: 'Badge Stockage',
+      showRamBadge: 'Badge RAM',
       showGuaranteeBadge: 'Badge Garantie',
       showLogoBadge: 'Badge Logo',
       chargerTitle: 'Texte Titre',
@@ -544,6 +611,30 @@ const i18n = {
       chargerConditionHint: 'Exemple: Neuf',
       chargerCompatibility: 'Compatibilite',
       chargerCompatibilityHint: 'Un modele par ligne (exemple: Dell Latitude 5490)',
+      diffModelTitle: 'Titre Modele',
+      diffModelTitleHint: 'Exemple: LATITUDE 5400',
+      diffPromoLead: 'Promo Gauche Ligne 1',
+      diffPromoLeadHint: 'Exemple: TESTE SUR',
+      diffPromoValue: 'Valeur Promo Gauche',
+      diffPromoValueHint: 'Exemple: 50',
+      diffPromoTail: 'Promo Gauche Ligne 2',
+      diffPromoTailHint: 'Exemple: POINTS DE CONTROLE',
+      diffPromoBadge: 'Badge Promo Gauche',
+      diffPromoBadgeHint: 'Exemple: RECONDITIONNE EN FRANCE',
+      diffWarrantyNumber: 'Nombre Garantie',
+      diffWarrantyNumberHint: 'Exemple: 1',
+      diffWarrantyUnit: 'Unite Garantie',
+      diffWarrantyUnitHint: 'Exemple: AN',
+      diffWarrantyTitle: 'Titre Garantie',
+      diffWarrantyTitleHint: 'Exemple: GARANTIE',
+      diffWarrantySubtitle: 'Sous-titre Garantie',
+      diffWarrantySubtitleHint: 'Exemple: Pieces et main d oeuvre',
+      diffEcoLead: 'Eco Ligne 1',
+      diffEcoLeadHint: 'Exemple: ENGAGE POUR',
+      diffEcoHighlight: 'Eco Ligne 2',
+      diffEcoHighlightHint: 'Exemple: L ENVIRONNEMENT',
+      diffOldPrice: 'Ancien Prix',
+      diffOldPriceHint: 'Exemple: 899',
     },
     statusReady: 'Pret pour la generation.',
     statusGenerating: 'Generation de limage...',
@@ -739,12 +830,22 @@ const canvas = document.getElementById('posterCanvas');
 const ctx = canvas.getContext('2d');
 const controlsPanel = document.getElementById('controlsPanel');
 const statusText = document.getElementById('statusText');
+const exportDialog = document.getElementById('exportDialog');
+const resolutionGroup = document.getElementById('resolutionGroup');
+const resolutionSelect = document.getElementById('resolutionSelect');
+const designModeBar = document.getElementById('designModeBar');
+const designModeText = document.getElementById('designModeText');
+const btnDesignExport = document.getElementById('btnDesignExport');
+const btnDesignCancel = document.getElementById('btnDesignCancel');
 let logoImageObj = null;
 let chargerImageObj = null;
 let defaultPcImageObj = null;
 let defaultLaptopImageObj = null;
 let isGenerating = false;
 let statusAnimTimer = null;
+let pendingExportExtension = null;
+let exportDesignSession = null;
+const exportDesignVariants = {};
 let logoResizeHandleRect = null;
 let logoBadgeResizeHandleRect = null;
 let logoBadgeBodyRect = null;
@@ -1510,18 +1611,195 @@ function setGeneratingState(active) {
 
   pngBtn.disabled = active;
   jpgBtn.disabled = active;
+  if (btnDesignExport) {
+    btnDesignExport.disabled = active;
+    btnDesignExport.classList.toggle('loading', active);
+  }
+  if (btnDesignCancel) {
+    btnDesignCancel.disabled = active;
+  }
   pngBtn.classList.toggle('loading', active);
   jpgBtn.classList.toggle('loading', active);
 
   if (active) {
     pngBtn.textContent = 'Generating...';
     jpgBtn.textContent = 'Generating...';
+    if (btnDesignExport) {
+      btnDesignExport.textContent = 'Generating...';
+    }
     startStatusLoadingAnimation();
   } else {
     stopStatusLoadingAnimation();
     pngBtn.textContent = t().generatePng;
     jpgBtn.textContent = t().generateJpg;
+    if (btnDesignExport) {
+      btnDesignExport.textContent = exportDesignSession
+        ? `${pendingExportExtension?.toUpperCase() || 'EXPORT'} ${exportDesignSession.width} x ${exportDesignSession.height}`
+        : 'Export';
+    }
   }
+}
+
+function updateCanvasViewport() {
+  canvas.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
+}
+
+function setCanvasResolution(width, height) {
+  canvas.width = width;
+  canvas.height = height;
+  updateCanvasViewport();
+  drawPoster();
+}
+
+function getExportDialogText() {
+  if (state.lang === 'fr') {
+    return {
+      title: 'Exporter Image',
+      hint: 'Choisissez soit la taille actuelle, soit une resolution wallpaper avant export.',
+      same: 'Utiliser la taille actuelle du design',
+      wallpaper: 'Designer d abord en resolution wallpaper',
+      resolution: 'Resolution Wallpaper',
+      cancel: 'Annuler',
+      continue: 'Continuer',
+      design: 'Mode resolution {size}: repositionnez les elements, puis exportez.',
+      export: 'Exporter',
+    };
+  }
+  return {
+    title: 'Export Image',
+    hint: 'Choose whether to save the current design or first design at a wallpaper resolution.',
+    same: 'Use current design size',
+    wallpaper: 'Design in a wallpaper resolution first',
+    resolution: 'Wallpaper Resolution',
+    cancel: 'Cancel',
+    continue: 'Continue',
+    design: 'Resolution mode {size}: drag elements to their new positions, then export.',
+    export: 'Export',
+  };
+}
+
+function refreshExportDialogUi() {
+  const text = getExportDialogText();
+  const titleEl = document.getElementById('exportDialogTitle');
+  const hintEl = document.getElementById('exportDialogHint');
+  const sameEl = document.getElementById('exportSameLabel');
+  const wallpaperEl = document.getElementById('exportWallpaperLabel');
+  const resolutionEl = document.getElementById('resolutionLabel');
+  const cancelEl = document.getElementById('btnExportDialogCancel');
+  const continueEl = document.getElementById('btnExportDialogConfirm');
+  if (titleEl) titleEl.textContent = text.title;
+  if (hintEl) hintEl.textContent = text.hint;
+  if (sameEl) sameEl.textContent = text.same;
+  if (wallpaperEl) wallpaperEl.textContent = text.wallpaper;
+  if (resolutionEl) resolutionEl.textContent = text.resolution;
+  if (cancelEl) cancelEl.textContent = text.cancel;
+  if (continueEl) continueEl.textContent = text.continue;
+  if (btnDesignCancel) btnDesignCancel.textContent = text.cancel;
+  if (btnDesignExport && !exportDesignSession) btnDesignExport.textContent = text.export;
+}
+
+function populateResolutionOptions() {
+  if (!resolutionSelect) {
+    return;
+  }
+  resolutionSelect.innerHTML = '';
+  WALLPAPER_RESOLUTIONS.forEach((item, index) => {
+    const option = document.createElement('option');
+    option.value = item.value;
+    option.textContent = item.label;
+    option.selected = index === 0;
+    resolutionSelect.appendChild(option);
+  });
+}
+
+function updateResolutionGroupVisibility() {
+  if (!exportDialog) {
+    return;
+  }
+  const selectedMode = exportDialog.querySelector('input[name="exportMode"]:checked')?.value || 'same';
+  resolutionGroup?.classList.toggle('hidden', selectedMode !== 'wallpaper');
+}
+
+function closeExportDialog() {
+  if (exportDialog?.open) {
+    exportDialog.close();
+  }
+}
+
+function getExportDesignVariantKey(width, height) {
+  const scope = state.generator === 'device' ? `${state.generator}-${state.type}` : state.generator;
+  return `${scope}-${width}x${height}`;
+}
+
+function createCurrentDesignSnapshot() {
+  return {
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    posterState: snapshotForUndo(),
+  };
+}
+
+function applyDesignSnapshot(snapshot) {
+  if (!snapshot) {
+    return;
+  }
+  restoreFromUndoSnapshot(snapshot.posterState);
+  canvas.width = snapshot.canvasWidth;
+  canvas.height = snapshot.canvasHeight;
+  updateCanvasViewport();
+  renderControls();
+  drawPoster();
+}
+
+function saveCurrentExportDesignVariant() {
+  if (!exportDesignSession?.variantKey) {
+    return;
+  }
+  exportDesignVariants[exportDesignSession.variantKey] = createCurrentDesignSnapshot();
+}
+
+function enterExportDesignMode(extension, width, height) {
+  const variantKey = getExportDesignVariantKey(width, height);
+  const originalSnapshot = createCurrentDesignSnapshot();
+  pendingExportExtension = extension;
+  exportDesignSession = {
+    width,
+    height,
+    variantKey,
+    originalSnapshot,
+  };
+  const existingVariant = exportDesignVariants[variantKey];
+  if (existingVariant) {
+    applyDesignSnapshot(existingVariant);
+  } else {
+    setCanvasResolution(width, height);
+    renderControls();
+  }
+  if (designModeBar) {
+    designModeBar.classList.remove('hidden');
+  }
+  if (designModeText) {
+    designModeText.textContent = getExportDialogText().design.replace('{size}', `${width} x ${height}`);
+  }
+  if (btnDesignExport) {
+    btnDesignExport.textContent = `${extension.toUpperCase()} ${width} x ${height}`;
+  }
+  statusText.textContent = getExportDialogText().design.replace('{size}', `${width} x ${height}`);
+}
+
+function exitExportDesignMode() {
+  if (!exportDesignSession) {
+    return;
+  }
+  saveCurrentExportDesignVariant();
+  const { originalSnapshot } = exportDesignSession;
+  exportDesignSession = null;
+  pendingExportExtension = null;
+  if (designModeBar) {
+    designModeBar.classList.add('hidden');
+  }
+  applyDesignSnapshot(originalSnapshot);
+  statusText.textContent = t().statusReady;
 }
 
 function buildTileSection(title, key, values, labelMap = null) {
@@ -1611,32 +1889,11 @@ function buildStorageSection() {
 
   const labels = t().labels;
 
-  const typeTitle = document.createElement('div');
-  typeTitle.textContent = labels.storageType;
-  typeTitle.style.marginBottom = '6px';
-  section.appendChild(typeTitle);
-
-  const typeWrap = document.createElement('div');
-  typeWrap.className = 'options';
-  options.storageType.forEach((value) => {
-    const btn = document.createElement('button');
-    btn.className = `tile ${state.storageType === value ? 'active' : ''}`;
-    btn.textContent = value;
-    btn.addEventListener('click', () => {
-      state.storageType = value;
-      renderControls();
-      drawPoster();
-    });
-    typeWrap.appendChild(btn);
-  });
-  section.appendChild(typeWrap);
-
   const typeCustomGroup = document.createElement('div');
   typeCustomGroup.className = 'input-group';
-  typeCustomGroup.style.marginTop = '10px';
 
   const typeCustomLabel = document.createElement('label');
-  typeCustomLabel.textContent = labels.storageTypeCustom;
+  typeCustomLabel.textContent = labels.storageType;
   typeCustomGroup.appendChild(typeCustomLabel);
 
   const typeCustomInput = document.createElement('input');
@@ -1648,35 +1905,10 @@ function buildStorageSection() {
     drawPoster();
   });
   typeCustomGroup.appendChild(typeCustomInput);
-  section.appendChild(typeCustomGroup);
-
-  const sizeTitle = document.createElement('div');
-  sizeTitle.textContent = labels.storageSize;
-  sizeTitle.style.margin = '10px 0 6px';
-  section.appendChild(sizeTitle);
-
-  const sizeWrap = document.createElement('div');
-  sizeWrap.className = 'options';
-  options.storageSize.forEach((value) => {
-    const btn = document.createElement('button');
-    btn.className = `tile ${state.storageSize === value ? 'active' : ''}`;
-    btn.textContent = value;
-    btn.addEventListener('click', () => {
-      state.storageSize = value;
-      renderControls();
-      drawPoster();
-    });
-    sizeWrap.appendChild(btn);
-  });
-  section.appendChild(sizeWrap);
-
-  const customGroup = document.createElement('div');
-  customGroup.className = 'input-group';
-  customGroup.style.marginTop = '10px';
 
   const customLabel = document.createElement('label');
-  customLabel.textContent = labels.storageCustom;
-  customGroup.appendChild(customLabel);
+  customLabel.textContent = labels.storageSize;
+  typeCustomGroup.appendChild(customLabel);
 
   const customInput = document.createElement('input');
   customInput.type = 'text';
@@ -1686,8 +1918,8 @@ function buildStorageSection() {
     state.storageSize = e.target.value;
     drawPoster();
   });
-  customGroup.appendChild(customInput);
-  section.appendChild(customGroup);
+  typeCustomGroup.appendChild(customInput);
+  section.appendChild(typeCustomGroup);
 
   return section;
 }
@@ -1700,24 +1932,22 @@ function buildRamSection() {
   h3.textContent = t().sections.ram;
   section.appendChild(h3);
 
-  const sizeWrap = document.createElement('div');
-  sizeWrap.className = 'options';
-  options.ram.forEach((value) => {
-    const btn = document.createElement('button');
-    btn.className = `tile ${state.ram === value ? 'active' : ''}`;
-    btn.textContent = value;
-    btn.addEventListener('click', () => {
-      state.ram = value;
-      renderControls();
-      drawPoster();
-    });
-    sizeWrap.appendChild(btn);
-  });
-  section.appendChild(sizeWrap);
-
   const typeGroup = document.createElement('div');
   typeGroup.className = 'input-group';
-  typeGroup.style.marginTop = '10px';
+
+  const sizeLabel = document.createElement('label');
+  sizeLabel.textContent = t().sections.ram;
+  typeGroup.appendChild(sizeLabel);
+
+  const sizeInput = document.createElement('input');
+  sizeInput.type = 'text';
+  sizeInput.value = state.ram;
+  sizeInput.placeholder = '8 GB';
+  sizeInput.addEventListener('input', (e) => {
+    state.ram = e.target.value;
+    drawPoster();
+  });
+  typeGroup.appendChild(sizeInput);
 
   const typeLabel = document.createElement('label');
   typeLabel.textContent = t().labels.ramType;
@@ -1781,6 +2011,7 @@ function buildGeneratorSection() {
   const items = [
     ['device', t().labels.generatorDevice],
     ['charger', t().labels.generatorCharger],
+    ['diff', t().labels.generatorDiff],
   ];
 
   items.forEach(([value, label]) => {
@@ -1942,19 +2173,15 @@ function buildPriceSection() {
   currencyLabel.textContent = t().labels.currency;
   wrap.appendChild(currencyLabel);
 
-  const currencySelect = document.createElement('select');
-  ['USD', 'EUR'].forEach((code) => {
-    const opt = document.createElement('option');
-    opt.value = code;
-    opt.textContent = t().currencyNames[code] || code;
-    opt.selected = state.currency === code;
-    currencySelect.appendChild(opt);
-  });
-  currencySelect.addEventListener('change', (e) => {
+  const currencyInput = document.createElement('input');
+  currencyInput.type = 'text';
+  currencyInput.value = state.currency;
+  currencyInput.placeholder = 'USD';
+  currencyInput.addEventListener('input', (e) => {
     state.currency = e.target.value;
     drawPoster();
   });
-  wrap.appendChild(currencySelect);
+  wrap.appendChild(currencyInput);
 
   const priceLabel = document.createElement('label');
   priceLabel.textContent = t().labels.price;
@@ -1969,6 +2196,67 @@ function buildPriceSection() {
     drawPoster();
   });
   wrap.appendChild(input);
+
+  if (state.generator === 'diff') {
+    const oldPriceLabel = document.createElement('label');
+    oldPriceLabel.textContent = t().labels.diffOldPrice;
+    wrap.appendChild(oldPriceLabel);
+
+    const oldPriceInput = document.createElement('input');
+    oldPriceInput.type = 'text';
+    oldPriceInput.value = state.diffOldPrice;
+    oldPriceInput.placeholder = t().labels.diffOldPriceHint;
+    oldPriceInput.addEventListener('input', (e) => {
+      state.diffOldPrice = e.target.value;
+      drawPoster();
+    });
+    wrap.appendChild(oldPriceInput);
+  }
+
+  section.appendChild(wrap);
+  return section;
+}
+
+function buildDiffFormatSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.diffFormat;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const fields = [
+    ['diffModelTitle', t().labels.diffModelTitle, t().labels.diffModelTitleHint],
+    ['diffPromoLead', t().labels.diffPromoLead, t().labels.diffPromoLeadHint],
+    ['diffPromoValue', t().labels.diffPromoValue, t().labels.diffPromoValueHint],
+    ['diffPromoTail', t().labels.diffPromoTail, t().labels.diffPromoTailHint],
+    ['diffPromoBadge', t().labels.diffPromoBadge, t().labels.diffPromoBadgeHint],
+    ['diffWarrantyNumber', t().labels.diffWarrantyNumber, t().labels.diffWarrantyNumberHint],
+    ['diffWarrantyUnit', t().labels.diffWarrantyUnit, t().labels.diffWarrantyUnitHint],
+    ['diffWarrantyTitle', t().labels.diffWarrantyTitle, t().labels.diffWarrantyTitleHint],
+    ['diffWarrantySubtitle', t().labels.diffWarrantySubtitle, t().labels.diffWarrantySubtitleHint],
+    ['diffEcoLead', t().labels.diffEcoLead, t().labels.diffEcoLeadHint],
+    ['diffEcoHighlight', t().labels.diffEcoHighlight, t().labels.diffEcoHighlightHint],
+  ];
+
+  fields.forEach(([key, label, placeholder]) => {
+    const fieldLabel = document.createElement('label');
+    fieldLabel.textContent = label;
+    wrap.appendChild(fieldLabel);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = state[key];
+    input.placeholder = placeholder;
+    input.addEventListener('input', (e) => {
+      state[key] = e.target.value;
+      drawPoster();
+    });
+    wrap.appendChild(input);
+  });
 
   section.appendChild(wrap);
   return section;
@@ -1986,12 +2274,6 @@ function buildContactSection() {
   wrap.className = 'input-group';
 
   const items = Array.isArray(state.contactItems) ? state.contactItems : [];
-  const typeOptions = [
-    ['phone', t().labels.contactPhone],
-    ['email', t().labels.contactEmail],
-    ['address', t().labels.contactAddress],
-  ];
-
   items.forEach((item, idx) => {
     const row = document.createElement('div');
     row.style.display = 'grid';
@@ -1999,15 +2281,11 @@ function buildContactSection() {
     row.style.gap = '8px';
     row.style.alignItems = 'center';
 
-    const typeSelect = document.createElement('select');
-    typeOptions.forEach(([value, label]) => {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      opt.selected = item.type === value;
-      typeSelect.appendChild(opt);
-    });
-    typeSelect.addEventListener('change', (e) => {
+    const typeInput = document.createElement('input');
+    typeInput.type = 'text';
+    typeInput.value = item.type || '';
+    typeInput.placeholder = t().labels.contactType;
+    typeInput.addEventListener('input', (e) => {
       state.contactItems[idx].type = e.target.value;
       drawPoster();
     });
@@ -2030,7 +2308,7 @@ function buildContactSection() {
       drawPoster();
     });
 
-    row.appendChild(typeSelect);
+    row.appendChild(typeInput);
     row.appendChild(valueInput);
     row.appendChild(removeBtn);
     wrap.appendChild(row);
@@ -2043,7 +2321,7 @@ function buildContactSection() {
     if (!Array.isArray(state.contactItems)) {
       state.contactItems = [];
     }
-    state.contactItems.push({ type: 'phone', value: '' });
+    state.contactItems.push({ type: t().labels.contactPhone, value: '' });
     renderControls();
     drawPoster();
   });
@@ -2282,6 +2560,7 @@ function buildDeviceImageSection() {
     if (!selectedId) {
       return;
     }
+    pushUndoSnapshot();
     state.deviceImages[state.type] = getCurrentDeviceImages().filter((img) => img.id !== selectedId);
     const next = state.deviceImages[state.type][state.deviceImages[state.type].length - 1] || null;
     setSelectedDeviceImageId(next ? next.id : null);
@@ -2290,6 +2569,10 @@ function buildDeviceImageSection() {
   });
 
   clearAllBtn.addEventListener('click', () => {
+    if (getCurrentDeviceImages().length === 0) {
+      return;
+    }
+    pushUndoSnapshot();
     state.deviceImages[state.type] = [];
     setSelectedDeviceImageId(null);
     drawPoster();
@@ -2394,6 +2677,7 @@ function buildChargerImageSection() {
     if (!selectedId) {
       return;
     }
+    pushUndoSnapshot();
     state.chargerImages = (state.chargerImages || []).filter((img) => img.id !== selectedId);
     const next = state.chargerImages[state.chargerImages.length - 1] || null;
     state.selectedChargerImageId = next ? next.id : null;
@@ -2402,6 +2686,10 @@ function buildChargerImageSection() {
   });
 
   clearBtn.addEventListener('click', () => {
+    if (!state.chargerImageDataUrl && !(state.chargerImages || []).length) {
+      return;
+    }
+    pushUndoSnapshot();
     state.chargerImageDataUrl = '';
     chargerImageObj = null;
     state.chargerImages = [];
@@ -2502,7 +2790,10 @@ function buildBadgesSection() {
   [
     ['showLogoBadge', t().labels.showLogoBadge],
     ['showIntelBadge', t().labels.showIntelBadge],
+    ['showScreenBadge', t().labels.showScreenBadge],
     ['showBatteryBadge', t().labels.showBatteryBadge],
+    ['showStorageBadge', t().labels.showStorageBadge],
+    ['showRamBadge', t().labels.showRamBadge],
     ['showGuaranteeBadge', t().labels.showGuaranteeBadge],
   ].forEach(([key, label]) => {
     const row = document.createElement('label');
@@ -2634,10 +2925,7 @@ function buildBatterySection() {
   inputGroup.appendChild(pctLabel);
 
   const pctInput = document.createElement('input');
-  pctInput.type = 'number';
-  pctInput.min = '0';
-  pctInput.max = '100';
-  pctInput.step = '1';
+  pctInput.type = 'text';
   pctInput.value = state.batteryPercentage;
   pctInput.placeholder = t().labels.batteryPercentageHint;
   pctInput.addEventListener('input', (e) => {
@@ -2688,33 +2976,19 @@ function buildSpecificationsSection() {
       rowWrap.style.padding = '10px';
       rowWrap.style.background = '#f8fbff';
 
-      const leftLabel = document.createElement('label');
-      leftLabel.textContent = t().labels.specLeft;
-      rowWrap.appendChild(leftLabel);
+      const lineLabel = document.createElement('label');
+      lineLabel.textContent = t().labels.specLine;
+      rowWrap.appendChild(lineLabel);
 
-      const leftInput = document.createElement('input');
-      leftInput.type = 'text';
-      leftInput.value = row.left || row.leftEn || row.leftFr || '';
-      leftInput.placeholder = t().labels.specLeftHint;
-      leftInput.addEventListener('input', (e) => {
-        state.specCards[cardIndex].rows[rowIndex].left = e.target.value;
+      const lineInput = document.createElement('input');
+      lineInput.type = 'text';
+      lineInput.value = row.text || [row.left, row.right].filter(Boolean).join(' ').trim();
+      lineInput.placeholder = t().labels.specLineHint;
+      lineInput.addEventListener('input', (e) => {
+        state.specCards[cardIndex].rows[rowIndex] = { text: e.target.value };
         drawPoster();
       });
-      rowWrap.appendChild(leftInput);
-
-      const rightLabel = document.createElement('label');
-      rightLabel.textContent = t().labels.specRight;
-      rowWrap.appendChild(rightLabel);
-
-      const rightInput = document.createElement('input');
-      rightInput.type = 'text';
-      rightInput.value = row.right || row.rightEn || row.rightFr || '';
-      rightInput.placeholder = t().labels.specRightHint;
-      rightInput.addEventListener('input', (e) => {
-        state.specCards[cardIndex].rows[rowIndex].right = e.target.value;
-        drawPoster();
-      });
-      rowWrap.appendChild(rightInput);
+      rowWrap.appendChild(lineInput);
 
       const removeRowBtn = document.createElement('button');
       removeRowBtn.type = 'button';
@@ -2733,7 +3007,7 @@ function buildSpecificationsSection() {
     addRowBtn.type = 'button';
     addRowBtn.textContent = t().labels.addSpecRow;
     addRowBtn.addEventListener('click', () => {
-      state.specCards[cardIndex].rows.push({ left: '', right: '' });
+      state.specCards[cardIndex].rows.push({ text: '' });
       renderControls();
       drawPoster();
     });
@@ -2869,13 +3143,38 @@ function renderControls() {
     return;
   }
 
+  if (state.generator === 'diff') {
+    controlsPanel.appendChild(
+      buildTileSection(labels.sections.theme, 'theme', options.theme, (value) => labels.themeNames[value] || value)
+    );
+    controlsPanel.appendChild(applySectionToggle(buildDiffFormatSection(), 'diffFormat'));
+    controlsPanel.appendChild(applySectionToggle(buildTileSection(labels.sections.type, 'type', options.type), 'type'));
+    controlsPanel.appendChild(applySectionToggle(buildDeviceImageSection(), 'image'));
+    controlsPanel.appendChild(applySectionToggle(buildLogoSection(), 'logo'));
+    controlsPanel.appendChild(applySectionToggle(buildPriceSection(), 'price'));
+    controlsPanel.appendChild(
+      applySectionToggle(buildProcessorSection(), 'processor')
+    );
+    controlsPanel.appendChild(applySectionToggle(buildStorageSection(), 'storage'));
+    controlsPanel.appendChild(applySectionToggle(buildRamSection(), 'ram'));
+    controlsPanel.appendChild(
+      applySectionToggle(
+        buildInputSection(labels.sections.os, labels.labels.osCustom, 'os', labels.labels.osHint),
+        'os'
+      )
+    );
+    controlsPanel.appendChild(buildColorsSection());
+    return;
+  }
+
   controlsPanel.appendChild(
     buildTileSection(labels.sections.theme, 'theme', options.theme, (value) => labels.themeNames[value] || value)
   );
   controlsPanel.appendChild(applySectionToggle(buildTitleBadgeSection(), 'titleBadge'));
+  controlsPanel.appendChild(applySectionToggle(buildTileSection(labels.sections.type, 'type', options.type), 'type'));
   controlsPanel.appendChild(
     applySectionToggle(
-      buildTilePlusInputSection(labels.sections.os, 'os', options.os, labels.labels.osCustom, labels.labels.osHint),
+      buildInputSection(labels.sections.os, labels.labels.osCustom, 'os', labels.labels.osHint),
       'os'
     )
   );
@@ -2899,15 +3198,13 @@ function renderControls() {
   );
   controlsPanel.appendChild(applySectionToggle(buildDeviceImageSection(), 'image'));
   controlsPanel.appendChild(applySectionToggle(buildLogoSection(), 'logo'));
-  controlsPanel.appendChild(buildColorsSection());
-
-  controlsPanel.appendChild(applySectionToggle(buildTileSection(labels.sections.type, 'type', options.type), 'type'));
   controlsPanel.appendChild(
     applySectionToggle(buildPriceSection(), 'price')
   );
   controlsPanel.appendChild(
     applySectionToggle(buildContactSection(), 'contact')
   );
+  controlsPanel.appendChild(buildColorsSection());
   controlsPanel.appendChild(applySectionToggle(buildBadgesSection(), 'badges'));
 }
 
@@ -2949,61 +3246,77 @@ function drawTagIcon(x, y, icon, color) {
   ctx.restore();
 }
 
-function drawTag(x, y, w, h, color, textA, textB = '', textColor = '#111111', icon = '', headerText = '') {
-  const outerColor = color || '#ff4f43';
-  const resolvedTextColor = '#111111';
-  const leftPad = icon ? 46 : 14;
-  const rightPad = 14;
-  const maxTextWidth = Math.max(40, w - leftPad - rightPad);
-  const hasSecondLine = !!textB;
-  const titleText = String(headerText || textB || '').trim();
-  const outerPad = 8;
-  const captionH = titleText ? Math.max(30, Math.round(h * 0.28)) : outerPad;
+function drawTag(x, y, w, h, color, textA, textB = '', textColor = '#111111', icon = '', headerText = '', metrics = null) {
+  const header = String(headerText || '').trim().toUpperCase();
+  const contentText = [String(textA || '').trim(), String(textB || '').trim()].filter(Boolean).join(' ');
+  const outerColor = color || '#3a82df';
+  const innerFill = '#f7fbff';
+  const titleH = Math.max(24, Math.round(h * 0.22));
+  const outerPad = 6;
   const innerX = x + outerPad;
-  const captionY = y + outerPad;
-  const innerY = y + outerPad + captionH;
+  const innerY = y + titleH + 2;
   const innerW = w - (outerPad * 2);
-  const innerH = Math.max(32, h - captionH - (outerPad * 2));
+  const innerH = Math.max(34, h - titleH - outerPad - 2);
 
-  drawRoundedRect(x, y, w, h, 8, outerColor);
-  drawRoundedRect(innerX, innerY, innerW, innerH, 5, '#f7fbff');
+  drawRoundedRect(x, y, w, h, 10, outerColor);
+  drawRoundedRect(innerX, innerY, innerW, innerH, 6, innerFill);
+
+  if (header) {
+    drawCenteredBadgeLines(
+      header,
+      x + 8,
+      y + 5,
+      w - 16,
+      Math.max(16, titleH - 8),
+      '#ffffff',
+      metrics?.headerFontSize || 11,
+      metrics?.headerMinSize || 9,
+      '800',
+      1
+    );
+  }
 
   if (icon) {
-    drawTagIcon(x + 8, y + 16, icon, resolvedTextColor);
+    drawTagIcon(innerX + 8, innerY + 8, icon, '#2f4f76');
   }
 
-  if (hasSecondLine) {
-    const innerText = headerText ? `${textA} ${textB}` : String(textA);
-    drawCenteredBadgeLines(innerText, innerX + 6, innerY + 6, innerW - 12, innerH - 12, resolvedTextColor, 25, 10, '700', 2);
-  } else {
-    drawCenteredBadgeLines(String(textA), innerX + 6, innerY + 6, innerW - 12, innerH - 12, resolvedTextColor, 25, 10, '700', 2);
-  }
-
-  if (titleText) {
-    drawCenteredBadgeLines(titleText.toUpperCase(), x + 8, captionY + 2, w - 16, captionH - 6, '#ffffff', 14, 9, 'bold', 1);
-  }
+  drawCenteredBadgeLines(
+    contentText,
+    innerX + 8,
+    innerY + 8,
+    innerW - 16,
+    innerH - 16,
+    '#2f4f76',
+    metrics?.contentFontSize || 20,
+    metrics?.contentMinSize || 12,
+    '800',
+    3
+  );
 }
 
 function getResponsiveTagHeight(w, textA, textB = '', headerText = '', icon = '') {
-  return w;
+  const contentText = [String(textA || '').trim(), String(textB || '').trim()].filter(Boolean).join(' ');
+  const titleH = Math.max(24, Math.round(w * 0.22));
+  const contentBlockH = Math.max(54, Math.round(w * 0.58));
+  return Math.max(92, titleH + contentBlockH + 8);
 }
 
 function getResponsiveProcessorBadgeMetrics(w, primaryText = '', secondaryText = '', tertiaryText = '', headerText = 'PROCESSOR') {
   const leftPad = 14;
   const rightPad = 14;
   const maxTextWidth = Math.max(40, w - leftPad - rightPad);
-  const headerSize = fitText(String(headerText), maxTextWidth, 'bold', 11, 8, 'Segoe UI');
+  const headerSize = fitText(String(headerText), maxTextWidth, '800', 11, 9, 'Segoe UI');
   const primarySize = primaryText ? fitText(String(primaryText), maxTextWidth, '700', 28, 16, 'Segoe UI') : 0;
   const secondarySize = secondaryText ? fitText(String(secondaryText), maxTextWidth, '600', 20, 11, 'Segoe UI') : 0;
   const tertiarySize = tertiaryText ? fitText(String(tertiaryText), maxTextWidth, '600', 16, 10, 'Segoe UI') : 0;
-  const lineGap = 3;
+  const lineGap = 1;
   const activeTextLines = [primarySize, secondarySize, tertiarySize].filter((size) => size > 0).length;
   const totalTextHeight = primarySize + secondarySize + tertiarySize + (Math.max(0, activeTextLines - 1) * lineGap);
   const headerTop = 8;
-  const headerGap = 8;
-  const contentTopPad = 8;
+  const headerGap = 3;
+  const contentTopPad = 0;
   const contentBottomPad = 8;
-  const height = w;
+  const height = Math.max(74, headerTop + headerSize + headerGap + contentTopPad + totalTextHeight + contentBottomPad);
   return {
     headerSize,
     primarySize,
@@ -3015,6 +3328,56 @@ function getResponsiveProcessorBadgeMetrics(w, primaryText = '', secondaryText =
     contentTopPad,
     contentBottomPad,
     height,
+  };
+}
+
+function getUnifiedStackBadgeMetrics() {
+  const badgeKeys = ['processor', 'screen', 'battery', 'storage', 'ram'];
+  const baseSizes = badgeKeys.map((key) => getStackBadgeSize(key));
+  const maxConfiguredW = Math.max(...baseSizes.map((size) => size.w));
+  const maxConfiguredH = Math.max(...baseSizes.map((size) => size.h));
+
+  const contentSamples = [
+    [state.processorCore, state.processorNumber, state.processorGeneration].filter(Boolean).join(' '),
+    String(state.screenSize || '').trim(),
+    String(getBatteryPercentLabel() || '').trim(),
+    [state.storageSize, state.storageType].filter(Boolean).join(' '),
+    [state.ram, state.ramType].filter(Boolean).join(' '),
+  ].filter(Boolean);
+
+  ctx.save();
+  ctx.font = '700 18px Segoe UI';
+  const widestContent = contentSamples.reduce((max, text) => Math.max(max, ctx.measureText(text).width), 0);
+  ctx.restore();
+
+  const sharedW = Math.max(maxConfiguredW, Math.min(150, Math.ceil(widestContent + 20)));
+  const sharedH = Math.max(
+    maxConfiguredH,
+    getResponsiveProcessorBadgeMetrics(
+      sharedW,
+      state.processorCore,
+      state.processorNumber,
+      state.processorGeneration,
+      state.lang === 'fr' ? 'PROCESSEUR' : 'PROCESSOR'
+    ).height,
+    getResponsiveTagHeight(sharedW, String(state.screenSize || '').trim(), '', state.lang === 'fr' ? 'ECRAN' : 'SCREEN'),
+    getResponsiveTagHeight(sharedW, String(getBatteryPercentLabel() || '').trim(), '', state.lang === 'fr' ? 'BATTERIE' : 'BATTERY'),
+    getResponsiveTagHeight(sharedW, String(state.storageSize || '').replace(' ', ''), String(state.storageType || '').trim(), state.lang === 'fr' ? 'DISQUE DUR' : 'HARD DRIVE'),
+    getResponsiveTagHeight(sharedW, String(state.ram || '').replace(' ', ''), String(state.ramType || '').trim(), 'RAM')
+  );
+  const contentFontSize = sharedW >= 138 ? 22 : 20;
+  const headerFontSize = sharedW >= 138 ? 10 : 9;
+  return {
+    w: sharedW,
+    h: sharedH,
+    contentFontSize,
+    contentMinSize: Math.max(12, contentFontSize - 6),
+    headerFontSize,
+    headerMinSize: headerFontSize,
+    primaryFontSize: sharedW >= 138 ? 28 : 26,
+    primaryMinSize: 12,
+    secondaryFontSize: sharedW >= 138 ? 18 : 16,
+    secondaryMinSize: 12,
   };
 }
 
@@ -3123,6 +3486,11 @@ function getDeviceImageBoxRect() {
   const cardY = 30;
   const cardW = canvas.width - 56;
   const deviceOffset = getLayoutOffset('device');
+  if (state.generator === 'diff') {
+    return state.type === 'Laptop'
+      ? { x: cardX + 270 + deviceOffset.x, y: cardY + 260 + deviceOffset.y, w: 420, h: 300 }
+      : { x: cardX + 255 + deviceOffset.x, y: cardY + 250 + deviceOffset.y, w: 460, h: 340 };
+  }
   return state.type === 'Laptop'
     ? { x: cardX + 148 + deviceOffset.x, y: cardY + 220 + deviceOffset.y, w: 510, h: 360 }
     : { x: cardX + 140 + deviceOffset.x, y: cardY + 220 + deviceOffset.y, w: 560, h: 430 };
@@ -3290,43 +3658,138 @@ function splitPriceDisplay() {
   if (explicitMatch) {
     return { symbol: explicitMatch[1], value: explicitMatch[2] || '' };
   }
-  const symbol = state.currency === 'EUR' ? '€' : '$';
+  const currency = String(state.currency || '').trim();
+  const upperCurrency = currency.toUpperCase();
+  let symbol = '';
+  if (upperCurrency === 'EUR' || currency === '€') {
+    symbol = '€';
+  } else if (upperCurrency === 'USD' || currency === '$') {
+    symbol = '$';
+  } else if (currency) {
+    symbol = `${currency} `;
+  }
   return { symbol, value };
 }
 
-function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
+function splitPriceNumberParts(rawValue) {
+  const normalized = String(rawValue || '').trim().replace(',', '.');
+  if (!normalized) {
+    return { whole: '', fractional: '', hasDecimal: false };
+  }
+  const match = normalized.match(/^(\d+)(?:\.(\d+))?$/);
+  if (match) {
+    return {
+      whole: match[1] || '',
+      fractional: match[2] || '',
+      hasDecimal: !!match[2],
+    };
+  }
+  const lastDotIndex = normalized.lastIndexOf('.');
+  if (lastDotIndex > 0 && lastDotIndex < normalized.length - 1) {
+    return {
+      whole: normalized.slice(0, lastDotIndex),
+      fractional: normalized.slice(lastDotIndex + 1),
+      hasDecimal: true,
+    };
+  }
+  return { whole: normalized, fractional: '', hasDecimal: false };
+}
+
+function getPriceBadgeRect(cardX, cardY, cardW, cardH) {
   const priceParts = splitPriceDisplay();
   if (state.sectionEnabled.price === false || !priceParts.value) {
-    return;
+    return null;
   }
 
-  const priceText = `${priceParts.symbol}${priceParts.value}`.trim();
-  ctx.font = 'bold 48px Segoe UI';
-  const textWidth = ctx.measureText(priceText).width;
-  const badgeW = Math.max(250, Math.min(430, Math.ceil(textWidth * 1.7 + 90)));
+  const amountParts = splitPriceNumberParts(priceParts.value);
+  const mainText = `${priceParts.symbol}${amountParts.whole || priceParts.value}`.trim();
+  ctx.save();
+  ctx.font = '900 56px Segoe UI';
+  const mainWidth = ctx.measureText(mainText).width;
+  ctx.font = '900 30px Segoe UI';
+  const fractionalWidth = amountParts.hasDecimal ? ctx.measureText(`.${amountParts.fractional}`).width : 0;
+  ctx.font = '800 18px Segoe UI';
+  const titleWidth = ctx.measureText((t().sections.price || 'PRICE').toUpperCase()).width;
+  ctx.restore();
+  const contentWidth = Math.max(titleWidth, mainWidth + fractionalWidth);
+  const wholeDigits = String(amountParts.whole || '').replace(/\D/g, '').length;
+  const baseBadgeSize = 250;
+  const badgeW = wholeDigits >= 4
+    ? Math.max(baseBadgeSize, Math.min(430, Math.ceil(contentWidth * 1.45 + 96)))
+    : baseBadgeSize;
   const badgeH = badgeW;
   const priceOffset = getLayoutOffset('price');
-  const badgeX = cardX + cardW - badgeW - 24 + priceOffset.x;
-  const badgeY = cardY + cardH - badgeH - 22 + priceOffset.y;
+  return {
+    x: cardX + cardW - badgeW - 24 + priceOffset.x,
+    y: cardY + cardH - badgeH - 22 + priceOffset.y,
+    w: badgeW,
+    h: badgeH,
+    title: (t().sections.price || 'PRICE').toUpperCase(),
+    symbol: priceParts.symbol,
+    whole: amountParts.whole || priceParts.value,
+    fractional: amountParts.fractional,
+    hasDecimal: amountParts.hasDecimal,
+  };
+}
+
+function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
+  const priceRect = getPriceBadgeRect(cardX, cardY, cardW, cardH);
+  if (!priceRect) {
+    return;
+  }
+  const {
+    x: badgeX,
+    y: badgeY,
+    w: badgeW,
+    h: badgeH,
+    title: priceTitle,
+    symbol,
+    whole,
+    fractional,
+    hasDecimal,
+  } = priceRect;
 
   const badgeColor = isHexColor(theme.priceBox) ? theme.priceBox : '#ff0050';
   drawCleanPriceBadgeShape(badgeX, badgeY, badgeW, badgeH, badgeColor);
-
-  const textBoxW = Math.round(badgeW * 0.58);
-  const textBoxH = Math.round(badgeH * 0.28);
-  const textBoxX = badgeX + (badgeW - textBoxW) / 2;
-  const textBoxY = badgeY + (badgeH - textBoxH) / 2 + Math.round(badgeH * 0.01);
-  const textSize = fitText(priceText, textBoxW, '900', Math.round(badgeW * 0.17), 24, 'Segoe UI');
 
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = 'rgba(31,26,23,0.88)';
-  ctx.lineWidth = Math.max(3, Math.round(textSize * 0.12));
-  ctx.font = `900 ${textSize}px Segoe UI`;
-  ctx.strokeText(priceText, badgeX + badgeW / 2, textBoxY + textBoxH / 2);
-  ctx.fillText(priceText, badgeX + badgeW / 2, textBoxY + textBoxH / 2);
+
+  const titleY = badgeY + Math.round(badgeH * 0.28);
+  const titleSize = fitText(priceTitle, Math.round(badgeW * 0.5), '800', Math.round(badgeW * 0.08), 12, 'Segoe UI');
+  ctx.lineWidth = Math.max(2, Math.round(titleSize * 0.1));
+  ctx.font = `800 ${titleSize}px Segoe UI`;
+  ctx.strokeText(priceTitle, badgeX + badgeW / 2, titleY);
+  ctx.fillText(priceTitle, badgeX + badgeW / 2, titleY);
+
+  const mainText = `${symbol}${whole}`;
+  const mainSize = fitText(mainText, Math.round(badgeW * 0.54), '900', Math.round(badgeW * 0.2), 26, 'Segoe UI');
+  const fractionalText = hasDecimal ? `.${fractional}` : '';
+  const fractionalSize = Math.max(16, Math.round(mainSize * 0.56));
+  ctx.font = `900 ${mainSize}px Segoe UI`;
+  const mainWidth = ctx.measureText(mainText).width;
+  ctx.font = `900 ${fractionalSize}px Segoe UI`;
+  const fractionalWidth = fractionalText ? ctx.measureText(fractionalText).width : 0;
+  const totalWidth = mainWidth + fractionalWidth;
+  const amountCenterY = badgeY + Math.round(badgeH * 0.58);
+  const amountStartX = badgeX + ((badgeW - totalWidth) / 2);
+
+  ctx.textAlign = 'left';
+  ctx.font = `900 ${mainSize}px Segoe UI`;
+  ctx.lineWidth = Math.max(3, Math.round(mainSize * 0.12));
+  ctx.strokeText(mainText, amountStartX, amountCenterY);
+  ctx.fillText(mainText, amountStartX, amountCenterY);
+
+  if (fractionalText) {
+    const fractionalY = amountCenterY + Math.round(mainSize * 0.16);
+    ctx.font = `900 ${fractionalSize}px Segoe UI`;
+    ctx.lineWidth = Math.max(2, Math.round(fractionalSize * 0.12));
+    ctx.strokeText(fractionalText, amountStartX + mainWidth, fractionalY);
+    ctx.fillText(fractionalText, amountStartX + mainWidth, fractionalY);
+  }
   ctx.restore();
 
   registerDraggableRegion('price', badgeX, badgeY, badgeW, badgeH);
@@ -3336,13 +3799,21 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
 }
 
 function getContactTypeLabel(type) {
-  if (type === 'email') {
+  const rawType = String(type || '').trim();
+  const normalizedType = rawType.toLowerCase();
+  if (normalizedType === 'email') {
     return t().labels.contactEmail;
   }
-  if (type === 'address') {
+  if (normalizedType === 'website') {
+    return t().labels.contactWebsite;
+  }
+  if (normalizedType === 'address') {
     return t().labels.contactAddress;
   }
-  return t().labels.contactPhone;
+  if (normalizedType === 'phone') {
+    return t().labels.contactPhone;
+  }
+  return rawType || t().labels.contactPhone;
 }
 
 function drawContactBadge(cardX, cardY, cardW, cardH, theme) {
@@ -3364,21 +3835,43 @@ function drawContactBadge(cardX, cardY, cardW, cardH, theme) {
   ctx.font = '900 17px Segoe UI';
   const title = t().sections.contact.toUpperCase();
   const titleWidth = ctx.measureText(title).width;
-  let maxLabelWidth = 0;
-  let maxValueWidth = 0;
-  rows.forEach((row) => {
-    ctx.font = '800 15px Segoe UI';
-    maxLabelWidth = Math.max(maxLabelWidth, ctx.measureText(row.label).width);
-    ctx.font = '900 16px Segoe UI';
-    maxValueWidth = Math.max(maxValueWidth, ctx.measureText(row.value).width);
-  });
+  const contactParts = rows.map((row) => ({
+    text: `${row.label.toUpperCase()}: ${row.value}`,
+  }));
+  ctx.font = '900 18px Segoe UI';
+  const contentWidth = contactParts.reduce((sum, part, idx) => {
+    const partWidth = ctx.measureText(part.text).width;
+    const separatorWidth = idx < contactParts.length - 1 ? 26 : 0;
+    return sum + partWidth + separatorWidth;
+  }, 0);
 
   const contactOffset = getLayoutOffset('contact');
-  const badgeW = Math.max(300, Math.min(cardW - 68, Math.ceil(Math.max(titleWidth + 56, maxLabelWidth + maxValueWidth + 96))));
-  const rowH = 32;
-  const badgeH = Math.max(106, 70 + rows.length * rowH);
-  const badgeX = cardX + cardW - badgeW - 34 + contactOffset.x;
-  const badgeY = cardY + cardH - badgeH - 170 + contactOffset.y;
+  const badgeW = Math.max(420, Math.min(cardW - 60, Math.ceil(Math.max(titleWidth + 64, contentWidth + 64))));
+  const badgeH = 110;
+  const priceRect = getPriceBadgeRect(cardX, cardY, cardW, cardH);
+  const deviceRect = state.generator === 'device' ? getDeviceImageBoxRect() : null;
+  const bottomY = cardY + cardH - badgeH - 28;
+  let badgeX = deviceRect
+    ? deviceRect.x + Math.round((deviceRect.w - badgeW) / 2) + contactOffset.x
+    : cardX + cardW - badgeW - 34 + contactOffset.x;
+  badgeX = Math.max(cardX + 24, Math.min(cardX + cardW - badgeW - 24, badgeX));
+  let badgeY = deviceRect
+    ? Math.min(bottomY, deviceRect.y + deviceRect.h + 18 + contactOffset.y)
+    : bottomY + contactOffset.y;
+
+  if (priceRect) {
+    const overlapsPrice = !(
+      badgeX + badgeW + 18 <= priceRect.x
+      || badgeX >= priceRect.x + priceRect.w + 18
+      || badgeY + badgeH + 12 <= priceRect.y
+      || badgeY >= priceRect.y + priceRect.h + 12
+    );
+    if (overlapsPrice) {
+      const shiftedLeftX = priceRect.x - badgeW - 26 + contactOffset.x;
+      badgeX = Math.max(cardX + 24, Math.min(cardX + cardW - badgeW - 24, shiftedLeftX));
+      badgeY = bottomY;
+    }
+  }
 
   drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 16, theme.specOuter);
   const bg = ctx.createLinearGradient(badgeX + 6, badgeY + 6, badgeX + badgeW - 6, badgeY + badgeH - 6);
@@ -3391,25 +3884,36 @@ function drawContactBadge(cardX, cardY, cardW, cardH, theme) {
   ctx.fillText(title, badgeX + 22, badgeY + 32);
   drawRoundedRect(badgeX + 20, badgeY + 45, badgeW - 40, 2, 1, 'rgba(255,255,255,0.42)');
 
-  const labelX = badgeX + 22;
-  const valueX = badgeX + Math.max(128, Math.round(badgeW * 0.38));
-  const labelColW = valueX - labelX - 12;
-  const valueColW = badgeX + badgeW - 22 - valueX;
-  const baseY = badgeY + 78;
-  rows.forEach((row, idx) => {
-    const y = baseY + idx * rowH;
-    if (idx > 0) {
-      drawRoundedRect(badgeX + 20, y - 21, badgeW - 40, 1, 0, theme.specDivider);
+  ctx.save();
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = theme.specValue;
+  const contentFontSize = fitText(
+    contactParts.map((part) => part.text).join(' | '),
+    badgeW - 44,
+    '900',
+    18,
+    14,
+    'Segoe UI'
+  );
+  ctx.font = `900 ${contentFontSize}px Segoe UI`;
+  let cursorX = badgeX + 22;
+  const contentY = badgeY + 78;
+  contactParts.forEach((part, idx) => {
+    ctx.fillText(part.text, cursorX, contentY);
+    const partWidth = ctx.measureText(part.text).width;
+    cursorX += partWidth;
+    if (idx < contactParts.length - 1) {
+      const dividerX = cursorX + 13;
+      ctx.strokeStyle = theme.specDivider || 'rgba(255,255,255,0.42)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(dividerX, contentY - 10);
+      ctx.lineTo(dividerX, contentY + 10);
+      ctx.stroke();
+      cursorX += 26;
     }
-    ctx.fillStyle = '#dce8ff';
-    const labelSize = fitText(row.label, labelColW, '800', 15, 12, 'Segoe UI');
-    ctx.font = `800 ${labelSize}px Segoe UI`;
-    ctx.fillText(row.label, labelX, y);
-    ctx.fillStyle = theme.specValue;
-    const valueSize = fitText(row.value, valueColW, '900', 16, 12, 'Segoe UI');
-    ctx.font = `900 ${valueSize}px Segoe UI`;
-    ctx.fillText(row.value, valueX, y);
   });
+  ctx.restore();
 
   registerDraggableRegion('contact', badgeX, badgeY, badgeW, badgeH);
   registerRemovableElement(badgeX, badgeY, badgeW, badgeH, () => {
@@ -3527,12 +4031,15 @@ function translateChargerTitleText(value, targetLang) {
 }
 
 function getBatteryPercentLabel() {
-  const digits = String(state.batteryPercentage || '').replace(/\D/g, '');
-  if (!digits) {
+  const raw = String(state.batteryPercentage || '').trim();
+  if (!raw) {
     return '0%';
   }
-  const clamped = Math.max(0, Math.min(100, Number(digits)));
-  return `${clamped}%`;
+  if (/^\d+$/.test(raw)) {
+    const clamped = Math.max(0, Math.min(100, Number(raw)));
+    return `${clamped}%`;
+  }
+  return raw;
 }
 
 function getChargerCompatibilityModels() {
@@ -3612,6 +4119,7 @@ function localizeSpecCardTitle(title) {
     caracteristiques: { en: 'Specifications', fr: 'Caracteristiques' },
     connectivity: { en: 'Connectivity', fr: 'Connectivite' },
     connectivite: { en: 'Connectivity', fr: 'Connectivite' },
+    power: { en: 'Power', fr: 'Alimentation' },
     'power supply': { en: 'Power Supply', fr: 'Alimentation' },
     alimentation: { en: 'Power Supply', fr: 'Alimentation' },
     ports: { en: 'Ports', fr: 'Ports' },
@@ -3674,6 +4182,19 @@ function localizeSpecRowText(text) {
     return state.lang === 'fr' ? mapped.fr : mapped.en;
   }
   return raw;
+}
+
+function getSpecRowLine(row) {
+  if (!row) {
+    return '';
+  }
+  const directText = row.text || row.textEn || row.textFr || '';
+  if (String(directText).trim()) {
+    return localizeSpecRowText(directText);
+  }
+  const left = row.left || row.leftEn || row.leftFr || '';
+  const right = row.right || row.rightEn || row.rightFr || '';
+  return localizeSpecRowText([left, right].filter(Boolean).join(' ').trim());
 }
 
 function buildWrappedBadgeLines(text, maxWidth, fontSize, weight = 'bold', maxLines = 2) {
@@ -3808,14 +4329,15 @@ function findTopStackBadgeBody(point) {
 function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
   const titleOffset = getLayoutOffset('storage');
   const titleText = (state.chargerTitle || 'FAST CHARGER').trim().toUpperCase();
-  const titleX = cardX + 34 + titleOffset.x;
+  const titleX = Math.max(cardX + 34, cardX + 34 + titleOffset.x);
   const titleY = cardY + 96 + titleOffset.y;
+  const titleMaxWidth = Math.max(180, (cardX + cardW - 220) - titleX);
   ctx.fillStyle = theme.title;
-  const titleSize = fitText(titleText, cardW - 360, 'italic bold', 76, 26, 'Segoe UI');
+  const titleSize = fitText(titleText, titleMaxWidth, 'italic bold', 76, 26, 'Segoe UI');
   ctx.font = `italic bold ${titleSize}px Segoe UI`;
   ctx.fillText(titleText, titleX, titleY);
-  registerDraggableRegion('storage', titleX - 8, titleY - titleSize, Math.max(280, cardW - 370), titleSize + 20);
-  registerRemovableElement(titleX - 8, titleY - titleSize, Math.max(280, cardW - 370), titleSize + 20, () => {
+  registerDraggableRegion('storage', titleX - 8, titleY - titleSize, titleMaxWidth + 16, titleSize + 20);
+  registerRemovableElement(titleX - 8, titleY - titleSize, titleMaxWidth + 16, titleSize + 20, () => {
     state.chargerTitle = '';
   });
 
@@ -3877,8 +4399,10 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
       86,
       shadeHexColor(theme.tag2, -0.05),
       (state.brand || 'Dell').trim() || 'Dell',
-      state.lang === 'fr' ? 'MARQUE' : 'COMPANY',
-      '#fff'
+      '',
+      '#fff',
+      '',
+      state.lang === 'fr' ? 'MARQUE' : 'COMPANY'
     );
     registerRemovableElement(badgeX, badgeY, badgeW, 86, () => {
       state.brand = '';
@@ -3893,8 +4417,10 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
         86,
         shadeHexColor(theme.tag2, 0.05),
         (state.chargerType || 'USB-C Charger').trim(),
-        state.lang === 'fr' ? 'TYPE' : 'TYPE',
-        '#fff'
+        '',
+        '#fff',
+        '',
+        state.lang === 'fr' ? 'TYPE' : 'TYPE'
       );
       registerRemovableElement(badgeX, badgeY, badgeW, 86, () => {
         state.showChargerTypeBadge = false;
@@ -3910,8 +4436,10 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
         86,
         shadeHexColor(theme.tag4, 0.05),
         (state.chargerVoltage || '20V').trim(),
-        state.lang === 'fr' ? 'TENSION' : 'VOLTAGE',
-        '#fff'
+        '',
+        '#fff',
+        '',
+        state.lang === 'fr' ? 'TENSION' : 'VOLTAGE'
       );
       registerRemovableElement(badgeX, badgeY, badgeW, 86, () => {
         state.showChargerVoltageBadge = false;
@@ -3927,8 +4455,10 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
         86,
         shadeHexColor(theme.batteryBadge, -0.04),
         (state.chargerAmpere || '3.25A').trim(),
-        state.lang === 'fr' ? 'AMPERAGE' : 'AMPERE',
-        '#fff'
+        '',
+        '#fff',
+        '',
+        state.lang === 'fr' ? 'AMPERAGE' : 'AMPERE'
       );
       registerRemovableElement(badgeX, badgeY, badgeW, 86, () => {
         state.showChargerAmpereBadge = false;
@@ -3944,8 +4474,10 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
         86,
         theme.tag1,
         (state.chargerPower || '65W').trim(),
-        state.lang === 'fr' ? 'PUISSANCE' : 'POWER',
-        '#fff'
+        '',
+        '#fff',
+        '',
+        state.lang === 'fr' ? 'PUISSANCE' : 'POWER'
       );
       registerRemovableElement(badgeX, badgeY, badgeW, 86, () => {
         state.showChargerPowerBadge = false;
@@ -3961,8 +4493,10 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
         86,
         shadeHexColor(theme.tag3, 0.06),
         (state.chargerCondition || 'New').trim(),
-        state.lang === 'fr' ? 'ETAT' : 'CONDITION',
-        '#fff'
+        '',
+        '#fff',
+        '',
+        state.lang === 'fr' ? 'ETAT' : 'CONDITION'
       );
       registerRemovableElement(badgeX, badgeY, badgeW, 86, () => {
         state.showChargerConditionBadge = false;
@@ -4047,10 +4581,8 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
     logoBadgeBodyRect = hasLogoImage ? null : { x: logoBadgeX, y: logoBadgeY, w: logoBadgeW, h: logoBadgeH };
 
     if (!hasLogoImage) {
-      drawRoundedRect(logoBadgeX, logoBadgeY, logoBadgeW, logoBadgeH, 12, '#ffffff');
-      drawRoundedRect(logoBadgeX, logoBadgeY, logoBadgeW, logoBadgeH, 12, null, '#111111');
-      drawRoundedRect(logoInnerX, logoInnerY, logoInnerW, logoInnerH, 8, '#ffffff');
-      drawRoundedRect(logoInnerX, logoInnerY, logoInnerW, logoInnerH, 8, null, '#111111');
+      drawRoundedRect(logoBadgeX, logoBadgeY, logoBadgeW, logoBadgeH, 12, theme.logoBadge);
+      drawRoundedRect(logoInnerX, logoInnerY, logoInnerW, logoInnerH, 8, '#f7fbff');
     }
     if (hasLogoImage) {
       const maxSize = Math.max(canvas.width, canvas.height) * 2;
@@ -4080,21 +4612,17 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
     } else {
       logoResizeHandleRect = null;
       logoImageBodyRect = null;
-      ctx.fillStyle = '#111111';
+      ctx.fillStyle = '#2f4f76';
       const logoText = 'LOGO';
-      const topSize = fitText(logoText, logoInnerW - 18, 'bold', 38, 14, 'Segoe UI');
-      ctx.font = `bold ${topSize}px Segoe UI`;
-      const topW = ctx.measureText(logoText).width;
-      const topY = logoInnerY + ((logoInnerH - topSize) / 2) + topSize;
-      ctx.fillText(logoText, logoInnerX + (logoInnerW - topW) / 2, topY);
-      ctx.fillStyle = '#111111';
-      const captionSize = fitText(logoText, logoBadgeW - 16, 'bold', 24, 12, 'Segoe UI');
-      ctx.font = `bold ${captionSize}px Segoe UI`;
-      const captionW = ctx.measureText(logoText).width;
-      const captionTop = logoInnerY + logoInnerH;
-      const captionH = logoBadgeH - 8 - logoInnerH;
-      const captionY = captionTop + ((captionH - captionSize) / 2) + captionSize;
-      ctx.fillText(logoText, logoBadgeX + (logoBadgeW - captionW) / 2, captionY);
+      const logoTextSize = fitText(logoText, logoInnerW - 18, 'bold', 28, 14, 'Segoe UI');
+      ctx.font = `bold ${logoTextSize}px Segoe UI`;
+      const logoTextWidth = ctx.measureText(logoText).width;
+      ctx.fillText(logoText, logoInnerX + (logoInnerW - logoTextWidth) / 2, logoInnerY + 56);
+      ctx.fillStyle = '#f2f8ff';
+      ctx.font = 'bold 24px Segoe UI';
+      const caption = 'LOGO';
+      const captionWidth = ctx.measureText(caption).width;
+      ctx.fillText(caption, logoBadgeX + (logoBadgeW - captionWidth) / 2, logoBadgeY + 135);
     }
 
     if (isLogoSelected && !hasLogoImage) {
@@ -4129,6 +4657,240 @@ function drawChargerPoster(cardX, cardY, cardW, cardH, theme) {
   }
 
   drawPriceBadge(cardX, cardY, cardW, cardH, theme);
+}
+
+function drawDiffLeaf(x, y, scale = 1, rotation = 0, color = '#7cc83c') {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(12, -16, 28, -8);
+  ctx.quadraticCurveTo(12, 6, 0, 0);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(2, -1);
+  ctx.lineTo(24, -7);
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawDiffLeafCluster(x, y, scale = 1) {
+  drawDiffLeaf(x, y, scale, -0.3);
+  drawDiffLeaf(x + (20 * scale), y + (6 * scale), scale * 0.85, 0.2, '#5bbf2f');
+  drawDiffLeaf(x - (14 * scale), y + (10 * scale), scale * 0.72, -0.8, '#90d748');
+}
+
+function drawDiffFormatBackdrop(cardX, cardY, cardW, cardH) {
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(cardX, cardY, cardW, cardH);
+
+  const waveStroke = 'rgba(220, 224, 229, 0.68)';
+  ctx.strokeStyle = waveStroke;
+  ctx.lineWidth = 24;
+  for (let i = 0; i < 5; i += 1) {
+    ctx.beginPath();
+    ctx.ellipse(
+      cardX + (cardW * 0.58),
+      cardY + 80 + (i * 72),
+      cardW * 0.72,
+      cardH * 0.30,
+      0,
+      0.2,
+      Math.PI + 0.1
+    );
+    ctx.stroke();
+  }
+
+  drawDiffLeafCluster(cardX + 22, cardY + 26, 0.9);
+  drawDiffLeafCluster(cardX + cardW - 34, cardY + 24, 0.85);
+  drawDiffLeafCluster(cardX + 26, cardY + cardH - 42, 1);
+  drawDiffLeafCluster(cardX + cardW - 40, cardY + cardH - 40, 0.95);
+  ctx.restore();
+}
+
+function drawDiffSquareBadge(x, y, w, h, colorA, colorB, topText, mainText, subText = '') {
+  const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+  grad.addColorStop(0, colorA);
+  grad.addColorStop(1, colorB);
+  drawRoundedRect(x, y, w, h, 18, grad);
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.58, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w, y + h * 0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  if (topText) {
+    drawCenteredBadgeLines(topText.toUpperCase(), x + 10, y + 16, w - 20, 28, '#f6fbff', 18, 10, '700', 1);
+  }
+  drawCenteredBadgeLines(mainText, x + 12, y + 46, w - 24, h - 74, '#ffffff', 36, 18, '800', 2);
+  if (subText) {
+    drawCenteredBadgeLines(subText, x + 12, y + h - 42, w - 24, 26, '#edf7ff', 22, 12, '700', 1);
+  }
+}
+
+function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
+  drawDiffFormatBackdrop(cardX, cardY, cardW, cardH);
+
+  const headerOffset = getLayoutOffset('diffHeader');
+  const headerX = cardX + 46 + headerOffset.x;
+  const headerY = cardY + 70 + headerOffset.y;
+  const headerH = 88;
+  const hasLogoImage = !!(logoImageObj && logoImageObj.complete && state.sectionEnabled.logo !== false);
+  let modelStartX = headerX;
+
+  if (hasLogoImage) {
+    const logoW = 190;
+    const logoH = 74;
+    const drawW = logoW;
+    const drawH = logoH;
+    ctx.drawImage(logoImageObj, headerX, headerY - 52, drawW, drawH);
+    logoImageBodyRect = { x: headerX, y: headerY - 52, w: drawW, h: drawH };
+    modelStartX = headerX + logoW + 18;
+    registerDraggableRegion('logo', headerX, headerY - 52, drawW, drawH);
+  } else {
+    logoImageBodyRect = null;
+    const brandText = (state.brand || 'DELL').toUpperCase();
+    ctx.fillStyle = '#1471bf';
+    ctx.font = `800 ${fitText(brandText, 210, '800', 54, 24, 'Segoe UI')}px Segoe UI`;
+    ctx.fillText(brandText, headerX, headerY);
+    modelStartX = headerX + Math.min(230, ctx.measureText(brandText).width + 18);
+  }
+
+  const modelText = (state.diffModelTitle || 'LATITUDE 5400').toUpperCase();
+  const modelW = Math.max(180, cardW - (modelStartX - cardX) - 320);
+  ctx.fillStyle = '#1471bf';
+  const modelSize = fitText(modelText, modelW, '400', 62, 22, 'Segoe UI');
+  ctx.font = `400 ${modelSize}px Segoe UI`;
+  ctx.fillText(modelText, modelStartX, headerY + 2);
+  registerDraggableRegion('diffHeader', headerX, headerY - 56, modelW + 220, headerH);
+
+  if (state.sectionEnabled.price !== false && (state.price || '').trim()) {
+    const priceOffset = getLayoutOffset('price');
+    const badgeX = cardX + cardW - 314 + priceOffset.x;
+    const badgeY = cardY + 42 + priceOffset.y;
+    const badgeW = 226;
+    const badgeH = 88;
+    const currentPrice = String(state.price || '').trim();
+    const oldPrice = String(state.diffOldPrice || '').trim();
+    drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 18, '#ff2347');
+    drawCenteredBadgeLines(currentPrice.includes('€') ? currentPrice : `${currentPrice}€`, badgeX + 20, badgeY + 10, badgeW - 40, 60, '#ffffff', 62, 22, '900', 1);
+    if (oldPrice) {
+      ctx.save();
+      ctx.fillStyle = '#4a3d42';
+      const oldText = oldPrice.includes('€') ? oldPrice : `${oldPrice}€`;
+      const oldSize = fitText(oldText, badgeW - 30, '500', 24, 12, 'Segoe UI');
+      ctx.font = `500 ${oldSize}px Segoe UI`;
+      const tx = badgeX + badgeW - ctx.measureText(oldText).width - 8;
+      const ty = badgeY + badgeH + 24;
+      ctx.fillText(oldText, tx, ty);
+      ctx.strokeStyle = '#8c4d5c';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(tx - 6, ty - oldSize / 2);
+      ctx.lineTo(tx + ctx.measureText(oldText).width + 6, ty - oldSize / 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    registerDraggableRegion('price', badgeX, badgeY, badgeW, badgeH + 34);
+    registerRemovableElement(badgeX, badgeY, badgeW, badgeH + 34, () => {
+      state.sectionEnabled.price = false;
+    });
+  }
+
+  const leftOffset = getLayoutOffset('diffLeftPromo');
+  const leftX = cardX + 74 + leftOffset.x;
+  const leftY = cardY + 272 + leftOffset.y;
+  ctx.fillStyle = '#b9b9b9';
+  drawCenteredBadgeLines((state.diffPromoLead || 'TESTED ON').toUpperCase(), leftX, leftY, 220, 70, '#b6b6b6', 42, 18, '300', 2);
+  drawCenteredBadgeLines((state.diffPromoValue || '50').toUpperCase(), leftX, leftY + 56, 220, 74, '#5fc53a', 76, 28, '800', 1);
+  drawCenteredBadgeLines((state.diffPromoTail || 'POINTS OF CONTROL').toUpperCase(), leftX, leftY + 128, 220, 110, '#9d9d9d', 38, 16, '300', 3);
+  ctx.save();
+  ctx.fillStyle = '#3f4dd7';
+  ctx.fillRect(leftX + 10, leftY + 252, 86, 56);
+  ctx.fillStyle = '#ff2f7f';
+  ctx.fillRect(leftX + 90, leftY + 238, 110, 74);
+  ctx.fillStyle = '#111111';
+  ctx.font = `700 ${fitText((state.diffPromoBadge || 'REFURBISHED IN FRANCE').toUpperCase(), 158, '700', 20, 9, 'Segoe UI')}px Segoe UI`;
+  drawCenteredBadgeLines((state.diffPromoBadge || 'REFURBISHED IN FRANCE').toUpperCase(), leftX + 20, leftY + 248, 170, 62, '#111111', 22, 10, '700', 3);
+  ctx.restore();
+  registerDraggableRegion('diffLeftPromo', leftX, leftY, 220, 320);
+
+  const currentDeviceImages = getCurrentDeviceImages();
+  const imageBox = getDeviceImageBoxRect();
+  if (state.sectionEnabled.image !== false && currentDeviceImages.length > 0) {
+    drawDeviceImageLayers(imageBox);
+    registerDraggableRegion('device', imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+    registerRemovableElement(imageBox.x, imageBox.y, imageBox.w, imageBox.h, () => {
+      state.sectionEnabled.image = false;
+    });
+  } else if (state.sectionEnabled.image !== false && state.type === 'Laptop' && defaultLaptopImageObj?.complete) {
+    deviceImageHandles = [];
+    drawDefaultDeviceImage(defaultLaptopImageObj, DEFAULT_LAPTOP_IMAGE_CROP, getDefaultLaptopImageRect(), DEFAULT_LAPTOP_IMAGE_ID, isDefaultDeviceImageSelected);
+  } else if (state.sectionEnabled.image !== false && defaultPcImageObj?.complete) {
+    deviceImageHandles = [];
+    drawDefaultDeviceImage(defaultPcImageObj, DEFAULT_PC_IMAGE_CROP, getDefaultPcImageRect(), DEFAULT_PC_IMAGE_ID, isDefaultDeviceImageSelected);
+  }
+
+  const warrantyOffset = getLayoutOffset('diffWarranty');
+  const warrantyX = cardX + cardW - 300 + warrantyOffset.x;
+  const warrantyY = cardY + 250 + warrantyOffset.y;
+  ctx.save();
+  ctx.fillStyle = '#ffd90b';
+  ctx.beginPath();
+  ctx.moveTo(warrantyX + 24, warrantyY + 18);
+  ctx.quadraticCurveTo(warrantyX + 40, warrantyY - 6, warrantyX + 76, warrantyY + 12);
+  ctx.quadraticCurveTo(warrantyX + 118, warrantyY - 6, warrantyX + 168, warrantyY + 12);
+  ctx.quadraticCurveTo(warrantyX + 214, warrantyY - 10, warrantyX + 238, warrantyY + 16);
+  ctx.quadraticCurveTo(warrantyX + 256, warrantyY + 44, warrantyX + 236, warrantyY + 72);
+  ctx.quadraticCurveTo(warrantyX + 252, warrantyY + 116, warrantyX + 220, warrantyY + 138);
+  ctx.quadraticCurveTo(warrantyX + 170, warrantyY + 162, warrantyX + 112, warrantyY + 150);
+  ctx.quadraticCurveTo(warrantyX + 62, warrantyY + 170, warrantyX + 22, warrantyY + 140);
+  ctx.quadraticCurveTo(warrantyX - 2, warrantyY + 112, warrantyX + 8, warrantyY + 74);
+  ctx.quadraticCurveTo(warrantyX - 6, warrantyY + 42, warrantyX + 24, warrantyY + 18);
+  ctx.fill();
+  ctx.restore();
+  drawCenteredBadgeLines(String(state.diffWarrantyNumber || '1'), warrantyX + 6, warrantyY + 6, 84, 126, '#111111', 84, 34, '300', 1);
+  drawCenteredBadgeLines(`${state.diffWarrantyUnit || 'YEAR'} ${state.diffWarrantyTitle || 'GUARANTEE'}`, warrantyX + 80, warrantyY + 28, 160, 86, '#111111', 42, 16, '400', 3);
+  drawCenteredBadgeLines((state.diffWarrantySubtitle || 'Parts and Labor').toUpperCase(), warrantyX + 72, warrantyY + 108, 170, 34, '#111111', 18, 10, '700', 2);
+  registerDraggableRegion('diffWarranty', warrantyX, warrantyY, 250, 160);
+
+  const ecoOffset = getLayoutOffset('diffEco');
+  const ecoX = cardX + cardW - 262 + ecoOffset.x;
+  const ecoY = cardY + 540 + ecoOffset.y;
+  ctx.save();
+  ctx.strokeStyle = '#84d33b';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(ecoX + 48, ecoY + 44, 34, 0, Math.PI * 2);
+  ctx.stroke();
+  drawDiffLeafCluster(ecoX + 48, ecoY + 42, 1);
+  ctx.restore();
+  drawCenteredBadgeLines((state.diffEcoLead || 'COMMITTED TO').toUpperCase(), ecoX + 86, ecoY + 2, 180, 42, '#7c7c7c', 20, 10, '500', 2);
+  drawCenteredBadgeLines((state.diffEcoHighlight || 'THE ENVIRONMENT').toUpperCase(), ecoX + 86, ecoY + 34, 200, 70, '#54bf39', 28, 12, '700', 2);
+  registerDraggableRegion('diffEco', ecoX, ecoY, 260, 96);
+
+  const bottomOffset = getLayoutOffset('diffBottomBadges');
+  const badgeY = cardY + cardH - 210 + bottomOffset.y;
+  const badgeW = 150;
+  const badgeH = 150;
+  const gap = 18;
+  const startX = cardX + Math.round((cardW - ((badgeW * 4) + (gap * 3))) / 2) + bottomOffset.x;
+  const processorBadgeMain = [state.processorCore, state.processorNumber].filter(Boolean).join(' ');
+  drawDiffSquareBadge(startX, badgeY, badgeW, badgeH, '#1b9fea', '#167ec8', 'Processor', processorBadgeMain || 'Core i5', '');
+  drawDiffSquareBadge(startX + badgeW + gap, badgeY, badgeW, badgeH, '#65c3c5', '#3e96a0', 'RAM', (state.ram || '8 GB').replace(' ', ''), (state.ramType || '').toUpperCase());
+  drawDiffSquareBadge(startX + ((badgeW + gap) * 2), badgeY, badgeW, badgeH, '#f2c246', '#d8a429', (state.storageType || 'SSD').toUpperCase(), (state.storageSize || '256 GB').replace(' ', ''), (state.storageType || 'SSD').toUpperCase());
+  drawDiffSquareBadge(startX + ((badgeW + gap) * 3), badgeY, badgeW, badgeH, '#1d9be4', '#116db7', 'OS', state.os || 'Windows', '');
+  registerDraggableRegion('diffBottomBadges', startX, badgeY, (badgeW * 4) + (gap * 3), badgeH);
 }
 
 function drawCustomTextLayers() {
@@ -4240,6 +5002,20 @@ function drawPoster() {
     isStorageBadgeSelected = false;
     isOsBadgeSelected = false;
     drawChargerPoster(cardX, cardY, cardW, cardH, theme);
+    drawCustomTextLayers();
+    if (activeTextId) {
+      showTextEditorForActiveLayer();
+    } else {
+      hideTextEditor();
+    }
+    drawSelectAllOverlay();
+    return;
+  }
+
+  if (state.generator === 'diff') {
+    isStorageBadgeSelected = false;
+    isOsBadgeSelected = false;
+    drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme);
     drawCustomTextLayers();
     if (activeTextId) {
       showTextEditorForActiveLayer();
@@ -4603,7 +5379,8 @@ function drawPoster() {
 
   const tagsOffset = getLayoutOffset('tags');
   const tagsX = cardX + cardW - 180 + tagsOffset.x;
-  const defaultTagW = DEFAULT_STACK_BADGE_SIZE.w;
+  const sharedStackMetrics = getUnifiedStackBadgeMetrics();
+  const defaultTagW = sharedStackMetrics.w;
   const tagsStartY = cardY + 188 + tagsOffset.y;
   let tagY = tagsStartY;
   const tagGap = 10;
@@ -4611,8 +5388,7 @@ function drawPoster() {
   let tagsMaxW = defaultTagW;
 
   if (state.sectionEnabled.processor !== false && state.showIntelBadge && (state.processor || '').trim()) {
-    const processorBadgeSize = getStackBadgeSize('processor');
-    const tagW = processorBadgeSize.w;
+    const tagW = sharedStackMetrics.w;
     const processorPrimary = (state.processorCore || '').trim();
     const processorSecondary = (state.processorNumber || '').trim();
     const processorTertiary = (state.processorGeneration || '').trim();
@@ -4624,20 +5400,41 @@ function drawPoster() {
       processorTertiary,
       headerText
     );
-    const badgeH = processorBadgeSize.h;
-    const outerPad = 8;
-    const captionH = Math.max(30, Math.round(badgeH * 0.28));
+    const badgeH = sharedStackMetrics.h;
+    const titleH = Math.max(24, Math.round(badgeH * 0.22));
+    const outerPad = 6;
     const innerX = tagsX + outerPad;
-    const captionY = tagY + outerPad;
-    const innerY = tagY + outerPad + captionH;
+    const innerY = tagY + titleH + 2;
     const innerW = tagW - (outerPad * 2);
-    const innerH = Math.max(32, badgeH - captionH - (outerPad * 2));
+    const innerH = Math.max(34, badgeH - titleH - outerPad - 2);
     const processorContent = [processorPrimary, processorSecondary, processorTertiary].filter(Boolean).join(' ');
 
-    drawRoundedRect(tagsX, tagY, tagW, badgeH, 8, theme.tag1);
-    drawRoundedRect(innerX, innerY, innerW, innerH, 5, '#f7fbff');
-    drawCenteredBadgeLines(processorContent, innerX + 6, innerY + 6, innerW - 12, innerH - 12, '#111111', 25, 10, '700', 2);
-    drawCenteredBadgeLines(headerText, tagsX + 8, captionY + 2, tagW - 16, captionH - 6, '#ffffff', 14, 9, 'bold', 1);
+    drawRoundedRect(tagsX, tagY, tagW, badgeH, 10, theme.tag1);
+    drawRoundedRect(innerX, innerY, innerW, innerH, 6, '#f7fbff');
+    drawCenteredBadgeLines(
+      headerText,
+      tagsX + 8,
+      tagY + 5,
+      tagW - 16,
+      Math.max(16, titleH - 8),
+      '#ffffff',
+      sharedStackMetrics.headerFontSize || 10,
+      sharedStackMetrics.headerMinSize || 9,
+      '800',
+      1
+    );
+    drawCenteredBadgeLines(
+      processorContent,
+      innerX + 8,
+      innerY + 8,
+      innerW - 16,
+      innerH - 16,
+      '#2f4f76',
+      sharedStackMetrics.contentFontSize || 16,
+      sharedStackMetrics.contentMinSize || 10,
+      '800',
+      3
+    );
 
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showIntelBadge = false;
@@ -4648,9 +5445,8 @@ function drawPoster() {
     tagY += badgeH + tagGap;
   }
   if (state.sectionEnabled.screen !== false && state.showScreenBadge && (state.screenSize || '').trim()) {
-    const screenBadgeSize = getStackBadgeSize('screen');
-    const tagW = screenBadgeSize.w;
-    const badgeH = screenBadgeSize.h;
+    const tagW = sharedStackMetrics.w;
+    const badgeH = sharedStackMetrics.h;
     drawTag(
       tagsX,
       tagY,
@@ -4661,7 +5457,8 @@ function drawPoster() {
       '',
       '#111111',
       '',
-      state.lang === 'fr' ? 'ECRAN' : 'SCREEN'
+      state.lang === 'fr' ? 'ECRAN' : 'SCREEN',
+      sharedStackMetrics
     );
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showScreenBadge = false;
@@ -4672,9 +5469,8 @@ function drawPoster() {
     tagY += badgeH + tagGap;
   }
   if (state.sectionEnabled.badges !== false && state.sectionEnabled.battery !== false && state.showBatteryBadge) {
-    const batteryBadgeSize = getStackBadgeSize('battery');
-    const tagW = batteryBadgeSize.w;
-    const badgeH = batteryBadgeSize.h;
+    const tagW = sharedStackMetrics.w;
+    const badgeH = sharedStackMetrics.h;
     drawTag(
       tagsX,
       tagY,
@@ -4685,7 +5481,8 @@ function drawPoster() {
       '',
       '#111111',
       '',
-      state.lang === 'fr' ? 'BATTERIE' : 'BATTERY'
+      state.lang === 'fr' ? 'BATTERIE' : 'BATTERY',
+      sharedStackMetrics
     );
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showBatteryBadge = false;
@@ -4696,9 +5493,8 @@ function drawPoster() {
     tagY += badgeH + tagGap;
   }
   if (state.sectionEnabled.storage !== false && state.showStorageBadge) {
-    const storageStackBadgeSize = getStackBadgeSize('storage');
-    const tagW = storageStackBadgeSize.w;
-    const badgeH = storageStackBadgeSize.h;
+    const tagW = sharedStackMetrics.w;
+    const badgeH = sharedStackMetrics.h;
     drawTag(
       tagsX,
       tagY,
@@ -4709,7 +5505,8 @@ function drawPoster() {
       state.storageType,
       '#111111',
       '',
-      state.lang === 'fr' ? 'DISQUE DUR' : 'HARD DRIVE'
+      state.lang === 'fr' ? 'DISQUE DUR' : 'HARD DRIVE',
+      sharedStackMetrics
     );
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showStorageBadge = false;
@@ -4720,10 +5517,9 @@ function drawPoster() {
     tagY += badgeH + tagGap;
   }
   if (state.sectionEnabled.ram !== false && state.showRamBadge) {
-    const ramStackBadgeSize = getStackBadgeSize('ram');
-    const tagW = ramStackBadgeSize.w;
+    const tagW = sharedStackMetrics.w;
     const ramBadgeSubtext = (state.ramType || '').trim();
-    const badgeH = ramStackBadgeSize.h;
+    const badgeH = sharedStackMetrics.h;
     drawTag(
       tagsX,
       tagY,
@@ -4734,7 +5530,8 @@ function drawPoster() {
       ramBadgeSubtext,
       '#111111',
       '',
-      'RAM'
+      'RAM',
+      sharedStackMetrics
     );
     registerRemovableElement(tagsX, tagY, tagW, badgeH, () => {
       state.showRamBadge = false;
@@ -4754,61 +5551,56 @@ function drawPoster() {
   if (state.sectionEnabled.specifications !== false) {
     const specOffset = getLayoutOffset('spec');
     const specCards = Array.isArray(state.specCards) ? state.specCards : [];
-    let specX = cardX + 34 + specOffset.x;
-    let specY = cardY + cardH - 350 + specOffset.y;
-    let totalSpecWidth = 0;
-    let totalSpecHeight = 0;
-    const measuredSpecCards = specCards.map((card) => {
+    const specX = cardX + 34 + specOffset.x;
+    const specY = cardY + cardH - 350 + specOffset.y;
+    const measuredSections = specCards.map((card) => {
       const titleSource = card.title || card.titleEn || card.titleFr || '';
       const title = localizeSpecCardTitle(titleSource);
       const rows = Array.isArray(card.rows)
-        ? card.rows.filter((row) => {
-          const left = localizeSpecRowText(row.left || row.leftEn || row.leftFr || '');
-          const right = localizeSpecRowText(row.right || row.rightEn || row.rightFr || '');
-          return left || right;
-        })
+        ? card.rows
+          .map((row) => getSpecRowLine(row))
+          .filter(Boolean)
         : [];
 
       ctx.font = '900 17px Segoe UI';
       const titleWidth = ctx.measureText(title.toUpperCase()).width;
-      let maxLabelWidth = 0;
-      let maxValueWidth = 0;
-
-      rows.forEach((row) => {
-        const left = localizeSpecRowText(row.left || row.leftEn || row.leftFr || '');
-        const right = localizeSpecRowText(row.right || row.rightEn || row.rightFr || '');
-        ctx.font = '800 16px Segoe UI';
-        maxLabelWidth = Math.max(maxLabelWidth, ctx.measureText(left || ' ').width);
-        ctx.font = '900 17px Segoe UI';
-        maxValueWidth = Math.max(maxValueWidth, ctx.measureText(right || ' ').width);
+      let maxRowWidth = 0;
+      rows.forEach((line) => {
+        ctx.font = '800 18px Segoe UI';
+        maxRowWidth = Math.max(maxRowWidth, ctx.measureText(line).width);
       });
 
-      return {
-        title,
-        rows,
-        titleWidth,
-        contentWidth: maxLabelWidth + maxValueWidth,
-      };
+      return { title, rows, titleWidth, maxRowWidth };
     });
-    const availableSpecW = Math.max(260, cardW - 74 - specOffset.x);
-    const sharedSpecW = Math.max(
-      250,
-      Math.min(
-        availableSpecW,
-        Math.ceil(Math.max(
-          250,
-          ...measuredSpecCards.map((card) => Math.max(card.titleWidth + 52, card.contentWidth + 112))
-        ))
-      )
-    );
 
-    measuredSpecCards.forEach((card) => {
-      const { title, rows } = card;
-      const rowH = 34;
-      const hasRows = rows.length > 0;
-      const visibleRows = Math.max(1, rows.length);
-      const specW = sharedSpecW;
-      const specH = hasRows ? Math.max(104, 70 + (visibleRows * rowH)) : 74;
+    if (measuredSections.length > 0) {
+      const availableSpecW = Math.max(220, cardW - 74 - specOffset.x);
+      const specW = Math.max(
+        180,
+        Math.min(
+          availableSpecW,
+          Math.ceil(Math.max(
+            180,
+            ...measuredSections.map((sectionData) => Math.max(sectionData.titleWidth + 56, sectionData.maxRowWidth + 56))
+          ))
+        )
+      );
+
+      const sectionGap = 6;
+      const headerH = 34;
+      const rowH = 30;
+      const emptySectionBodyH = 4;
+      const filledSectionBottomPad = 6;
+      const innerPadTop = 40;
+      const innerPadBottom = 40;
+      const innerPadX = 18;
+      const totalBodyH = measuredSections.reduce((sum, sectionData, index) => {
+        const sectionRowsH = sectionData.rows.length > 0
+          ? (sectionData.rows.length * rowH) + filledSectionBottomPad
+          : emptySectionBodyH;
+        return sum + headerH + sectionRowsH + (index < measuredSections.length - 1 ? sectionGap : 0);
+      }, 0);
+      const specH = innerPadTop + totalBodyH + innerPadBottom;
 
       drawRoundedRect(specX, specY, specW, specH, 14, theme.specOuter);
       const specInnerGrad = ctx.createLinearGradient(specX + 6, specY + 6, specX + specW - 6, specY + specH - 6);
@@ -4816,50 +5608,33 @@ function drawPoster() {
       specInnerGrad.addColorStop(1, theme.specInnerB);
       drawRoundedRect(specX + 6, specY + 6, specW - 12, specH - 12, 12, specInnerGrad);
 
-      const rowStartY = specY + 56;
-      drawRoundedRect(specX + 18, specY + 44, specW - 36, 2, 1, 'rgba(255,255,255,0.42)');
-      if (hasRows) {
-        const lineY = rowStartY + 4;
-        for (let i = 0; i < Math.max(0, visibleRows - 1); i += 1) {
-          drawRoundedRect(specX + 16, lineY + rowH * i, specW - 32, 1, 0, theme.specDivider);
-        }
-      }
-
-      ctx.fillStyle = theme.specValue;
-      ctx.font = '900 17px Segoe UI';
-      ctx.fillText(title.toUpperCase(), specX + 20, hasRows ? specY + 31 : specY + 36);
-
-      const labelX = specX + 20;
-      const valueX = specX + Math.max(170, Math.round(specW * 0.58));
-      const labelColW = valueX - labelX - 10;
-      const valueColW = specX + specW - 20 - valueX;
-      const textBaseY = rowStartY + 25;
-
-      rows.forEach((row, idx) => {
-        const left = localizeSpecRowText(row.left || row.leftEn || row.leftFr || '') || ' ';
-        const right = localizeSpecRowText(row.right || row.rightEn || row.rightFr || '') || ' ';
-        ctx.fillStyle = '#dce8ff';
-        const labelSize = fitText(left, labelColW, '800', 16, 14, 'Segoe UI');
-        ctx.font = `800 ${labelSize}px Segoe UI`;
-        ctx.fillText(left, labelX, textBaseY + rowH * idx);
+      let cursorY = specY + innerPadTop;
+      measuredSections.forEach((sectionData, index) => {
         ctx.fillStyle = theme.specValue;
-        const valueSize = fitText(right, valueColW, '900', 17, 15, 'Segoe UI');
-        ctx.font = `900 ${valueSize}px Segoe UI`;
-        ctx.fillText(right, valueX, textBaseY + rowH * idx);
+        ctx.font = '900 17px Segoe UI';
+        ctx.fillText(sectionData.title.toUpperCase(), specX + 20, cursorY + 14);
+        drawRoundedRect(specX + innerPadX, cursorY + 26, specW - (innerPadX * 2), 2, 1, 'rgba(255,255,255,0.42)');
+        cursorY += headerH;
+
+        sectionData.rows.forEach((line) => {
+          ctx.fillStyle = '#dce8ff';
+          const lineSize = fitText(line, specW - 40, '800', 18, 15, 'Segoe UI');
+          ctx.font = `800 ${lineSize}px Segoe UI`;
+          ctx.fillText(line, specX + 20, cursorY + 17);
+          cursorY += rowH;
+        });
+
+        cursorY += sectionData.rows.length === 0 ? emptySectionBodyH : filledSectionBottomPad;
+
+        if (index < measuredSections.length - 1) {
+          cursorY += sectionGap;
+        }
       });
 
       registerDraggableRegion('spec', specX, specY, specW, specH);
       registerRemovableElement(specX, specY, specW, specH, () => {
         state.sectionEnabled.specifications = false;
       });
-
-      totalSpecWidth = Math.max(totalSpecWidth, specW);
-      totalSpecHeight = (specY + specH) - (cardY + cardH - 350 + specOffset.y);
-      specY += specH + 18;
-    });
-
-    if (specCards.length > 1) {
-      registerDraggableRegion('spec', cardX + 34 + specOffset.x, cardY + cardH - 350 + specOffset.y, totalSpecWidth, totalSpecHeight);
     }
   }
 
@@ -4883,18 +5658,27 @@ function setUiLanguage() {
   document.getElementById('appTitle').textContent = t().appTitle;
   const tabDevice = document.getElementById('tabDevice');
   const tabCharger = document.getElementById('tabCharger');
-  if (tabDevice && tabCharger) {
+  const tabDiffFormat = document.getElementById('tabDiffFormat');
+  if (tabDevice && tabCharger && tabDiffFormat) {
     tabDevice.textContent = t().labels.generatorDevice;
     tabCharger.textContent = t().labels.generatorCharger;
+    tabDiffFormat.textContent = t().labels.generatorDiff;
     tabDevice.classList.toggle('active', state.generator === 'device');
     tabCharger.classList.toggle('active', state.generator === 'charger');
+    tabDiffFormat.classList.toggle('active', state.generator === 'diff');
   }
   if (!isGenerating) {
     document.getElementById('btnGeneratePng').textContent = t().generatePng;
     document.getElementById('btnGenerateJpg').textContent = t().generateJpg;
   }
   if (!isGenerating) {
-    statusText.textContent = t().statusReady;
+    statusText.textContent = exportDesignSession
+      ? getExportDialogText().design.replace('{size}', `${exportDesignSession.width} x ${exportDesignSession.height}`)
+      : t().statusReady;
+  }
+  refreshExportDialogUi();
+  if (exportDesignSession && designModeText) {
+    designModeText.textContent = getExportDialogText().design.replace('{size}', `${exportDesignSession.width} x ${exportDesignSession.height}`);
   }
 
   document.querySelectorAll('.lang-btn').forEach((btn) => {
@@ -4909,29 +5693,11 @@ function setUiLanguage() {
 }
 
 function exportImage(extension) {
-  const offscreen = document.createElement('canvas');
-  offscreen.width = 1000;
-  offscreen.height = 1000;
-
-  const offCtx = offscreen.getContext('2d');
-  offCtx.fillStyle = '#eaf0f8';
-  offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
-  offCtx.imageSmoothingEnabled = true;
-  offCtx.imageSmoothingQuality = 'high';
-
-  const fitScale = Math.min(offscreen.width / canvas.width, offscreen.height / canvas.height);
-  const drawW = Math.round(canvas.width * fitScale);
-  const drawH = Math.round(canvas.height * fitScale);
-  const dx = Math.round((offscreen.width - drawW) / 2);
-  const dy = Math.round((offscreen.height - drawH) / 2);
-
-  offCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, dx, dy, drawW, drawH);
-
   const mime = extension === 'jpg' ? 'image/jpeg' : 'image/png';
-  return offscreen.toDataURL(mime, 0.95);
+  return canvas.toDataURL(mime, extension === 'jpg' ? 1 : undefined);
 }
 
-async function generateImage(extension) {
+async function generateImage(extension, options = {}) {
   if (isGenerating) {
     return;
   }
@@ -4942,6 +5708,11 @@ async function generateImage(extension) {
   setGeneratingState(true);
   try {
     const startedAt = Date.now();
+    if (options.width && options.height && (canvas.width !== options.width || canvas.height !== options.height)) {
+      setCanvasResolution(options.width, options.height);
+    } else {
+      drawPoster();
+    }
     const dataUrl = exportImage(extension);
     const result = await window.desktopApi.saveImage({
       base64Data: dataUrl,
@@ -4965,7 +5736,13 @@ async function generateImage(extension) {
       return;
     }
 
+    if (exportDesignSession) {
+      saveCurrentExportDesignVariant();
+    }
     statusText.textContent = t().statusSaved(result.filePath);
+    if (options.restoreAfterSave && result.saved) {
+      exitExportDesignMode();
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown export error.';
     statusText.textContent = `Export failed: ${message}`;
@@ -5455,10 +6232,9 @@ canvas.addEventListener('mousemove', (event) => {
     const dy = p.y - stackBadgeResizeStart.y;
     const nextW = Math.max(stackBadgeResizeStart.minW, Math.round(stackBadgeResizeStart.w + dx));
     const nextH = Math.max(stackBadgeResizeStart.minH, Math.round(stackBadgeResizeStart.h + dy));
-    state.stackBadgeSizes = {
-      ...(state.stackBadgeSizes || cloneDefaultStackBadgeSizes()),
-      [stackBadgeResizeStart.key]: { w: nextW, h: nextH },
-    };
+    state.stackBadgeSizes = Object.fromEntries(
+      Object.keys(state.stackBadgeSizes || cloneDefaultStackBadgeSizes()).map((key) => [key, { w: nextW, h: nextH }])
+    );
     drawPoster();
     canvas.style.cursor = 'nwse-resize';
     return;
@@ -5735,13 +6511,13 @@ if (themeLightBtn && themeDarkBtn) {
 
 const tabDevice = document.getElementById('tabDevice');
 const tabCharger = document.getElementById('tabCharger');
-if (tabDevice && tabCharger) {
+const tabDiffFormat = document.getElementById('tabDiffFormat');
+if (tabDevice && tabCharger && tabDiffFormat) {
   tabDevice.addEventListener('click', () => {
     if (state.generator === 'device') {
       return;
     }
     state.generator = 'device';
-    resetLayoutToDefault();
     setUiLanguage();
     renderControls();
     drawPoster();
@@ -5751,17 +6527,96 @@ if (tabDevice && tabCharger) {
       return;
     }
     state.generator = 'charger';
-    resetLayoutToDefault();
+    setUiLanguage();
+    renderControls();
+    drawPoster();
+  });
+  tabDiffFormat.addEventListener('click', () => {
+    if (state.generator === 'diff') {
+      return;
+    }
+    state.generator = 'diff';
     setUiLanguage();
     renderControls();
     drawPoster();
   });
 }
 
-document.getElementById('btnGeneratePng').addEventListener('click', () => generateImage('png'));
-document.getElementById('btnGenerateJpg').addEventListener('click', () => generateImage('jpg'));
+function openExportDialog(extension) {
+  if (!exportDialog) {
+    generateImage(extension);
+    return;
+  }
+  pendingExportExtension = extension;
+  exportDialog.querySelector('input[name="exportMode"][value="same"]').checked = true;
+  updateResolutionGroupVisibility();
+  refreshExportDialogUi();
+  exportDialog.showModal();
+}
+
+document.getElementById('btnGeneratePng').addEventListener('click', () => {
+  if (exportDesignSession) {
+    generateImage('png', {
+      width: exportDesignSession.width,
+      height: exportDesignSession.height,
+      restoreAfterSave: true,
+    });
+    return;
+  }
+  openExportDialog('png');
+});
+document.getElementById('btnGenerateJpg').addEventListener('click', () => {
+  if (exportDesignSession) {
+    generateImage('jpg', {
+      width: exportDesignSession.width,
+      height: exportDesignSession.height,
+      restoreAfterSave: true,
+    });
+    return;
+  }
+  openExportDialog('jpg');
+});
+
+if (exportDialog) {
+  exportDialog.querySelectorAll('input[name="exportMode"]').forEach((input) => {
+    input.addEventListener('change', updateResolutionGroupVisibility);
+  });
+  document.getElementById('btnExportDialogCancel')?.addEventListener('click', () => {
+    pendingExportExtension = null;
+    closeExportDialog();
+  });
+  document.getElementById('btnExportDialogConfirm')?.addEventListener('click', () => {
+    const mode = exportDialog.querySelector('input[name="exportMode"]:checked')?.value || 'same';
+    const extension = pendingExportExtension || 'png';
+    if (mode === 'same') {
+      closeExportDialog();
+      generateImage(extension);
+      return;
+    }
+    const [width, height] = String(resolutionSelect?.value || '1920x1080').split('x').map((value) => Number(value));
+    closeExportDialog();
+    enterExportDesignMode(extension, width, height);
+  });
+}
+
+btnDesignCancel?.addEventListener('click', () => {
+  exitExportDesignMode();
+});
+
+btnDesignExport?.addEventListener('click', () => {
+  if (!exportDesignSession) {
+    return;
+  }
+  generateImage(pendingExportExtension || 'png', {
+    width: exportDesignSession.width,
+    height: exportDesignSession.height,
+    restoreAfterSave: true,
+  });
+});
 
 resetLayoutToDefault();
+populateResolutionOptions();
+updateCanvasViewport();
 setUiLanguage();
 renderControls();
 loadDefaultPcImage();

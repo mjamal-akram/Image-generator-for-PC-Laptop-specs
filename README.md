@@ -81,11 +81,8 @@ Main editable areas:
 4. Main process shows save dialog and writes file via `fs/promises`.
 
 ## 6. Portable Distribution Flow
-1. Build portable executable with:
-```bash
-npm run build:portable
-```
-2. Output is generated in `release/`.
+1. Portable build assets are already included in the repository under the portable folders and archive.
+2. This repository does not currently define an `npm run build:portable` script.
 3. A transfer package can contain:
 - `Jam_iw Software.exe`
 - `run.bat`
@@ -109,6 +106,7 @@ npm run build:portable
 ## Commands
 ```bash
 npm install
+npm run check
 npm start
 ```
 
@@ -118,10 +116,12 @@ npm install
 ```
 This installs all required packages from `package.json` (since `node_modules` is intentionally not pushed).
 
-## Build Portable
-```bash
-npm run build:portable
-```
+## Notes on startup
+- If `ELECTRON_RUN_AS_NODE=1` is set in your shell, Electron behaves like plain Node.js and the app will fail during startup.
+- The included `npm start` and `npm run dev` scripts now clear that variable before launching the app.
+- In restricted Windows environments, the scripts also launch Electron with `--no-sandbox` to avoid Chromium startup failures.
+- Runtime cache and app data are redirected to the local temp directory instead of the default roaming profile path.
+- `npm run check` verifies that `main.js` and `renderer.js` both parse correctly.
 
 ## Notes
 - The app is optimized for poster editing on a fixed square canvas workflow.

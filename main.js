@@ -1,6 +1,34 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const electron = require('electron');
+const os = require('os');
 const path = require('path');
-const fs = require('fs/promises');
+const fs = require('fs');
+const fsp = require('fs/promises');
+
+const { app, BrowserWindow, dialog, ipcMain } = electron;
+
+if (!app || !BrowserWindow || !dialog || !ipcMain) {
+  throw new Error(
+    'Electron APIs are unavailable. The app was started in Node mode instead of Electron. ' +
+    'Clear ELECTRON_RUN_AS_NODE and launch with "npm start".'
+  );
+}
+
+const runtimeRoot = path.join(os.tmpdir(), 'pc-spec-poster-desktop');
+const runtimePaths = {
+  userData: path.join(runtimeRoot, 'userData'),
+  sessionData: path.join(runtimeRoot, 'sessionData'),
+  crashDumps: path.join(runtimeRoot, 'crashDumps'),
+  logs: path.join(runtimeRoot, 'logs'),
+};
+
+Object.values(runtimePaths).forEach((dirPath) => {
+  fs.mkdirSync(dirPath, { recursive: true });
+});
+
+app.setPath('userData', runtimePaths.userData);
+app.setPath('sessionData', runtimePaths.sessionData);
+app.setPath('crashDumps', runtimePaths.crashDumps);
+app.setAppLogsPath(runtimePaths.logs);
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -66,7 +94,7 @@ ipcMain.handle('save-image', async (_event, { base64Data, extension, defaultFile
   }
 
   try {
-    await fs.writeFile(filePath, cleaned, 'base64');
+    await fsp.writeFile(filePath, cleaned, 'base64');
     return { saved: true, filePath };
   } catch {
     return { saved: false, error: 'Failed to save file.' };
