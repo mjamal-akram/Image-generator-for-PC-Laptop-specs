@@ -81,8 +81,11 @@ Main editable areas:
 4. Main process shows save dialog and writes file via `fs/promises`.
 
 ## 6. Portable Distribution Flow
-1. Portable build assets are already included in the repository under the portable folders and archive.
-2. This repository does not currently define an `npm run build:portable` script.
+1. Build the portable folder and zip with:
+```bash
+npm run build:portable
+```
+2. The build output is generated in `release/`.
 3. A transfer package can contain:
 - `Jam_iw Software.exe`
 - `run.bat`
@@ -108,6 +111,7 @@ Main editable areas:
 npm install
 npm run check
 npm start
+npm run build:portable
 ```
 
 After cloning from GitHub, always run:

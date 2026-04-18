@@ -10,6 +10,7 @@
   price: { x: -206, y: -208 },
   contact: { x: -215, y: 36 },
   diffHeader: { x: 0, y: 0 },
+  diffPrice: { x: 0, y: 0 },
   diffLeftPromo: { x: 0, y: 0 },
   diffWarranty: { x: 0, y: 0 },
   diffEco: { x: 0, y: 0 },
@@ -29,9 +30,15 @@ const DEFAULT_PC_IMAGE_CROP = { x: 0, y: 0, w: 600, h: 572 };
 const DEFAULT_PC_IMAGE_ID = '__default_pc_image__';
 const DEFAULT_PC_IMAGE_SIZE = { w: 500, h: 477 };
 const DEFAULT_LAPTOP_IMAGE_SRC = 'assets/default-laptop.png';
-const DEFAULT_LAPTOP_IMAGE_CROP = { x: 130, y: 260, w: 940, h: 670 };
+const DEFAULT_LAPTOP_IMAGE_CROP = { x: 0, y: 0, w: 512, h: 488 };
 const DEFAULT_LAPTOP_IMAGE_ID = '__default_laptop_image__';
 const DEFAULT_LAPTOP_IMAGE_SIZE = { w: 510, h: 360 };
+const GENERATOR_BACKGROUND_SRC = 'assets/generator-bg.jpg';
+const GENERATOR_BACKGROUND_PRESETS = {
+  bg1: 'assets/generator-bg.jpg',
+  bg2: 'assets/generator-bg-2.jpg',
+  bg3: 'assets/generator-bg-3.jpg',
+};
 const WALLPAPER_RESOLUTIONS = [
   { value: '1920x1080', label: 'Full HD 1920 x 1080' },
   { value: '2560x1440', label: 'QHD 2560 x 1440' },
@@ -156,7 +163,7 @@ function resetLayoutToDefault() {
 }
 
 const state = {
-  generator: 'device',
+  generator: 'diff',
   uiTheme: 'light',
   lang: 'en',
   theme: 'Modern',
@@ -197,6 +204,14 @@ const state = {
     },
   ],
   contactItems: [],
+  diffBrandText: 'DELL',
+  diffBrandFontSize: 54,
+  diffBrandBold: true,
+  diffBrandItalic: false,
+  diffBrandUnderline: false,
+  diffBrandColor: '#1471bf',
+  diffBackgroundSelection: 'bg1',
+  diffBackgroundUploadDataUrl: '',
   chargerTitle: 'FAST CHARGER',
   chargerType: 'USB-C Charger',
   chargerPower: '65W',
@@ -205,8 +220,14 @@ const state = {
   chargerCondition: 'New',
   chargerCompatibility: 'Dell Latitude 5490',
   price: '',
-  diffOldPrice: '899',
+  oldPrice: '',
+  diffOldPrice: '',
   diffModelTitle: 'LATITUDE 5400',
+  diffModelFontSize: 62,
+  diffModelBold: false,
+  diffModelItalic: false,
+  diffModelUnderline: false,
+  diffModelColor: '#1471bf',
   diffPromoLead: 'TESTED ON',
   diffPromoValue: '50',
   diffPromoTail: 'POINTS OF CONTROL',
@@ -308,15 +329,16 @@ const i18n = {
       battery: 'Battery',
       specifications: 'Specifications',
       guarantee: 'Guarantee',
+      background: 'Background',
       price: 'Price',
       contact: 'Contact',
       badges: 'Badge Visibility',
-      diffFormat: 'Diff Format Content',
+      diffFormat: 'Title Text',
     },
     labels: {
       generatorDevice: 'PC/Laptop',
       generatorCharger: 'Charger',
-      generatorDiff: 'Diff Format',
+      generatorDiff: 'Generator',
       storageType: 'Drive Type',
       titleTop: 'Top Title Text',
       titleTopHint: 'Example: SSD',
@@ -372,8 +394,18 @@ const i18n = {
       guaranteePeriod: 'Guarantee Period',
       guaranteePeriodHint: 'Example: 12 Months of Guarantee',
       price: 'Price',
+      oldPrice: 'Down Price',
+      oldPriceHint: 'Example: 250',
       currency: 'Currency',
-      priceHint: 'Typeable value (example: 450 USD)',
+      priceHint: 'Typeable value (example: $99.99)',
+      priceTagColor: 'Price Tag Color',
+      generatorBg1: 'Background 1',
+      generatorBg2: 'Background 2',
+      generatorBg3: 'Background 3',
+      generatorBgUpload: 'Uploaded',
+      uploadBackground: 'Upload Background',
+      clearUploadedBackground: 'Clear Uploaded Background',
+      backgroundHint: 'Choose a preset background or upload your own for the Generator tab.',
       contactType: 'Contact Type',
       contactValue: 'Contact Text',
       contactValueHint: 'Example: +1 234 567 890',
@@ -415,8 +447,15 @@ const i18n = {
       chargerConditionHint: 'Example: New',
       chargerCompatibility: 'Compatibility',
       chargerCompatibilityHint: 'One model per line (example: Dell Latitude 5490)',
-      diffModelTitle: 'Model Title',
-      diffModelTitleHint: 'Example: LATITUDE 5400',
+      diffBrandText: 'Company Text',
+      diffBrandTextHint: 'Example: Dell',
+      diffModelTitle: 'Other Text',
+      diffModelTitleHint: 'Example: Latitude 5400',
+      textBold: 'Bold',
+      textItalic: 'Italic',
+      textUnderline: 'Underline',
+      textSize: 'Text Size',
+      textColor: 'Text Color',
       diffPromoLead: 'Left Promo Line 1',
       diffPromoLeadHint: 'Example: TESTED ON',
       diffPromoValue: 'Left Promo Highlight',
@@ -504,15 +543,16 @@ const i18n = {
       battery: 'Batterie',
       specifications: 'Caracteristiques',
       guarantee: 'Garantie',
+      background: 'Arriere-plan',
       price: 'Prix',
       contact: 'Contact',
       badges: 'Visibilite Des Badges',
-      diffFormat: 'Contenu Format Diff',
+      diffFormat: 'Texte Titre',
     },
     labels: {
       generatorDevice: 'PC/Portable',
       generatorCharger: 'Chargeur',
-      generatorDiff: 'Format Diff',
+      generatorDiff: 'Generateur',
       storageType: 'Type De Disque',
       titleTop: 'Texte Titre Haut',
       titleTopHint: 'Exemple: SSD',
@@ -568,8 +608,18 @@ const i18n = {
       guaranteePeriod: 'Periode Garantie',
       guaranteePeriodHint: 'Exemple: 12 Mois De Garantie',
       price: 'Prix',
+      oldPrice: 'Prix Barre',
+      oldPriceHint: 'Exemple: 250',
       currency: 'Devise',
-      priceHint: 'Valeur a saisir (exemple: 450 EUR)',
+      priceHint: 'Valeur a saisir (exemple: 99.99€)',
+      priceTagColor: 'Couleur Etiquette Prix',
+      generatorBg1: 'Fond 1',
+      generatorBg2: 'Fond 2',
+      generatorBg3: 'Fond 3',
+      generatorBgUpload: 'Importe',
+      uploadBackground: 'Telecharger Arriere-plan',
+      clearUploadedBackground: 'Supprimer Arriere-plan Importe',
+      backgroundHint: 'Choisissez un fond predefini ou importez votre propre fond pour le Generateur.',
       contactType: 'Type De Contact',
       contactValue: 'Texte Contact',
       contactValueHint: 'Exemple: +33 1 23 45 67 89',
@@ -611,8 +661,15 @@ const i18n = {
       chargerConditionHint: 'Exemple: Neuf',
       chargerCompatibility: 'Compatibilite',
       chargerCompatibilityHint: 'Un modele par ligne (exemple: Dell Latitude 5490)',
-      diffModelTitle: 'Titre Modele',
-      diffModelTitleHint: 'Exemple: LATITUDE 5400',
+      diffBrandText: 'Texte Entreprise',
+      diffBrandTextHint: 'Exemple: Dell',
+      diffModelTitle: 'Autre Texte',
+      diffModelTitleHint: 'Exemple: Latitude 5400',
+      textBold: 'Gras',
+      textItalic: 'Italique',
+      textUnderline: 'Souligne',
+      textSize: 'Taille Texte',
+      textColor: 'Couleur Texte',
       diffPromoLead: 'Promo Gauche Ligne 1',
       diffPromoLeadHint: 'Exemple: TESTE SUR',
       diffPromoValue: 'Valeur Promo Gauche',
@@ -731,7 +788,7 @@ const themePalettes = {
     batteryBadge: '#27ae60',
     logoBadge: '#3a82df',
     brand: '#1f293b',
-    priceBox: '#ff0050',
+    priceBox: '#ff2128',
     priceText: '#ffffff',
     specOuter: '#ffffff',
     specInnerA: '#0d204b',
@@ -773,7 +830,7 @@ const themePalettes = {
     batteryBadge: '#27ae60',
     logoBadge: '#7f93ab',
     brand: '#2b3647',
-    priceBox: '#ff0050',
+    priceBox: '#ff2128',
     priceText: '#ffffff',
     specOuter: '#edf1f6',
     specInnerA: '#43536a',
@@ -815,7 +872,7 @@ const themePalettes = {
     batteryBadge: '#27ae60',
     logoBadge: '#ff5c44',
     brand: '#3a2025',
-    priceBox: '#ff0050',
+    priceBox: '#ff2128',
     priceText: '#fff2f2',
     specOuter: '#fff1ea',
     specInnerA: '#3a0f24',
@@ -841,6 +898,7 @@ let logoImageObj = null;
 let chargerImageObj = null;
 let defaultPcImageObj = null;
 let defaultLaptopImageObj = null;
+let generatorBackgroundImageObj = null;
 let isGenerating = false;
 let statusAnimTimer = null;
 let pendingExportExtension = null;
@@ -1529,7 +1587,7 @@ function buildColorsSection() {
   const items = [
     ['cardBg', state.lang === 'fr' ? 'Carte Fond' : 'Card Background'],
     ['osCard', state.lang === 'fr' ? 'Badge OS' : 'OS Badge'],
-    ['priceBox', state.lang === 'fr' ? 'Fond Prix' : 'Price Box'],
+    ['priceBox', state.lang === 'fr' ? 'Etiquette Prix' : 'Price Tag'],
     ['specOuter', state.lang === 'fr' ? 'Tableau Specs Exterieur' : 'Specs Table Outer'],
     ['specInnerA', state.lang === 'fr' ? 'Tableau Specs A' : 'Specs Table A'],
     ['specInnerB', state.lang === 'fr' ? 'Tableau Specs B' : 'Specs Table B'],
@@ -2197,21 +2255,35 @@ function buildPriceSection() {
   });
   wrap.appendChild(input);
 
-  if (state.generator === 'diff') {
-    const oldPriceLabel = document.createElement('label');
-    oldPriceLabel.textContent = t().labels.diffOldPrice;
-    wrap.appendChild(oldPriceLabel);
+  const oldPriceLabel = document.createElement('label');
+  oldPriceLabel.textContent = t().labels.oldPrice;
+  wrap.appendChild(oldPriceLabel);
 
-    const oldPriceInput = document.createElement('input');
-    oldPriceInput.type = 'text';
-    oldPriceInput.value = state.diffOldPrice;
-    oldPriceInput.placeholder = t().labels.diffOldPriceHint;
-    oldPriceInput.addEventListener('input', (e) => {
+  const oldPriceInput = document.createElement('input');
+  oldPriceInput.type = 'text';
+  oldPriceInput.value = state.oldPrice;
+  oldPriceInput.placeholder = t().labels.oldPriceHint;
+  oldPriceInput.addEventListener('input', (e) => {
+    state.oldPrice = e.target.value;
+    if (state.generator === 'diff') {
       state.diffOldPrice = e.target.value;
-      drawPoster();
-    });
-    wrap.appendChild(oldPriceInput);
-  }
+    }
+    drawPoster();
+  });
+  wrap.appendChild(oldPriceInput);
+
+  const colorLabel = document.createElement('label');
+  colorLabel.textContent = t().labels.priceTagColor;
+  wrap.appendChild(colorLabel);
+
+  const colorInput = document.createElement('input');
+  colorInput.type = 'color';
+  colorInput.value = state.customThemeColors.priceBox || getActiveThemePalette().priceBox || '#ff2128';
+  colorInput.addEventListener('input', (e) => {
+    state.customThemeColors.priceBox = e.target.value;
+    drawPoster();
+  });
+  wrap.appendChild(colorInput);
 
   section.appendChild(wrap);
   return section;
@@ -2229,20 +2301,42 @@ function buildDiffFormatSection() {
   wrap.className = 'input-group';
 
   const fields = [
-    ['diffModelTitle', t().labels.diffModelTitle, t().labels.diffModelTitleHint],
-    ['diffPromoLead', t().labels.diffPromoLead, t().labels.diffPromoLeadHint],
-    ['diffPromoValue', t().labels.diffPromoValue, t().labels.diffPromoValueHint],
-    ['diffPromoTail', t().labels.diffPromoTail, t().labels.diffPromoTailHint],
-    ['diffPromoBadge', t().labels.diffPromoBadge, t().labels.diffPromoBadgeHint],
-    ['diffWarrantyNumber', t().labels.diffWarrantyNumber, t().labels.diffWarrantyNumberHint],
-    ['diffWarrantyUnit', t().labels.diffWarrantyUnit, t().labels.diffWarrantyUnitHint],
-    ['diffWarrantyTitle', t().labels.diffWarrantyTitle, t().labels.diffWarrantyTitleHint],
-    ['diffWarrantySubtitle', t().labels.diffWarrantySubtitle, t().labels.diffWarrantySubtitleHint],
-    ['diffEcoLead', t().labels.diffEcoLead, t().labels.diffEcoLeadHint],
-    ['diffEcoHighlight', t().labels.diffEcoHighlight, t().labels.diffEcoHighlightHint],
+    {
+      key: 'diffBrandText',
+      label: t().labels.diffBrandText,
+      placeholder: t().labels.diffBrandTextHint,
+      boldKey: 'diffBrandBold',
+      italicKey: 'diffBrandItalic',
+      underlineKey: 'diffBrandUnderline',
+      sizeKey: 'diffBrandFontSize',
+      colorKey: 'diffBrandColor',
+      defaultSize: 54,
+    },
+    {
+      key: 'diffModelTitle',
+      label: t().labels.diffModelTitle,
+      placeholder: t().labels.diffModelTitleHint,
+      boldKey: 'diffModelBold',
+      italicKey: 'diffModelItalic',
+      underlineKey: 'diffModelUnderline',
+      sizeKey: 'diffModelFontSize',
+      colorKey: 'diffModelColor',
+      defaultSize: 62,
+    },
   ];
 
-  fields.forEach(([key, label, placeholder]) => {
+  const createFormatButton = (label, active, onClick) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `tile ${active ? 'active' : ''}`;
+    btn.textContent = label;
+    btn.style.padding = '8px 12px';
+    btn.style.minWidth = '84px';
+    btn.addEventListener('click', onClick);
+    return btn;
+  };
+
+  fields.forEach(({ key, label, placeholder, boldKey, italicKey, underlineKey, sizeKey, colorKey, defaultSize }) => {
     const fieldLabel = document.createElement('label');
     fieldLabel.textContent = label;
     wrap.appendChild(fieldLabel);
@@ -2256,8 +2350,217 @@ function buildDiffFormatSection() {
       drawPoster();
     });
     wrap.appendChild(input);
+
+    const controlsRow = document.createElement('div');
+    controlsRow.className = 'options';
+    controlsRow.style.marginBottom = '8px';
+    controlsRow.appendChild(
+      createFormatButton(t().labels.textBold, !!state[boldKey], () => {
+        state[boldKey] = !state[boldKey];
+        renderControls();
+        drawPoster();
+      })
+    );
+    controlsRow.appendChild(
+      createFormatButton(t().labels.textItalic, !!state[italicKey], () => {
+        state[italicKey] = !state[italicKey];
+        renderControls();
+        drawPoster();
+      })
+    );
+    controlsRow.appendChild(
+      createFormatButton(t().labels.textUnderline, !!state[underlineKey], () => {
+        state[underlineKey] = !state[underlineKey];
+        renderControls();
+        drawPoster();
+      })
+    );
+    wrap.appendChild(controlsRow);
+
+    const sizeLabel = document.createElement('label');
+    sizeLabel.textContent = t().labels.textSize;
+    wrap.appendChild(sizeLabel);
+
+    const sizeRow = document.createElement('div');
+    sizeRow.style.display = 'grid';
+    sizeRow.style.gridTemplateColumns = '44px 1fr 44px auto';
+    sizeRow.style.gap = '8px';
+    sizeRow.style.alignItems = 'center';
+    sizeRow.style.marginBottom = '12px';
+
+    const minSize = 18;
+    const maxSize = 84;
+    const currentSize = Math.max(minSize, Number(state[sizeKey]) || defaultSize);
+
+    const sizeInput = document.createElement('input');
+    sizeInput.type = 'range';
+    sizeInput.min = String(minSize);
+    sizeInput.max = String(maxSize);
+    sizeInput.step = '1';
+    sizeInput.value = String(currentSize);
+
+    const sizeValue = document.createElement('div');
+    sizeValue.textContent = `${currentSize}px`;
+
+    const updateSize = (nextValue) => {
+      const next = Math.max(minSize, Math.min(maxSize, Number(nextValue) || defaultSize));
+      state[sizeKey] = next;
+      sizeInput.value = String(next);
+      sizeValue.textContent = `${next}px`;
+      drawPoster();
+    };
+
+    const minusBtn = document.createElement('button');
+    minusBtn.type = 'button';
+    minusBtn.className = 'tile';
+    minusBtn.textContent = '-';
+    minusBtn.style.padding = '8px 0';
+    minusBtn.addEventListener('click', () => updateSize((Number(state[sizeKey]) || currentSize) - 1));
+
+    const plusBtn = document.createElement('button');
+    plusBtn.type = 'button';
+    plusBtn.className = 'tile';
+    plusBtn.textContent = '+';
+    plusBtn.style.padding = '8px 0';
+    plusBtn.addEventListener('click', () => updateSize((Number(state[sizeKey]) || currentSize) + 1));
+
+    sizeInput.addEventListener('input', (e) => {
+      updateSize(e.target.value);
+    });
+
+    sizeRow.appendChild(minusBtn);
+    sizeRow.appendChild(sizeInput);
+    sizeRow.appendChild(plusBtn);
+    sizeRow.appendChild(sizeValue);
+    wrap.appendChild(sizeRow);
+
+    const colorLabel = document.createElement('label');
+    colorLabel.textContent = t().labels.textColor;
+    wrap.appendChild(colorLabel);
+
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = state[colorKey] || '#1471bf';
+    colorInput.style.marginBottom = '12px';
+    colorInput.addEventListener('input', (e) => {
+      state[colorKey] = e.target.value;
+      drawPoster();
+    });
+    wrap.appendChild(colorInput);
   });
 
+  section.appendChild(wrap);
+  return section;
+}
+
+function buildDiffBackgroundSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.background;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const presetWrap = document.createElement('div');
+  presetWrap.className = 'options';
+
+  const presetItems = [
+    ['bg1', t().labels.generatorBg1],
+    ['bg2', t().labels.generatorBg2],
+    ['bg3', t().labels.generatorBg3],
+  ];
+
+  presetItems.forEach(([value, label]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `tile ${state.diffBackgroundSelection === value ? 'active' : ''}`;
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      if (state.diffBackgroundSelection === value) {
+        return;
+      }
+      state.diffBackgroundSelection = value;
+      loadGeneratorBackgroundImage();
+      renderControls();
+    });
+    presetWrap.appendChild(btn);
+  });
+
+  const uploadedBtn = document.createElement('button');
+  uploadedBtn.type = 'button';
+  uploadedBtn.className = `tile ${state.diffBackgroundSelection === 'upload' ? 'active' : ''}`;
+  uploadedBtn.textContent = t().labels.generatorBgUpload;
+  uploadedBtn.disabled = !state.diffBackgroundUploadDataUrl;
+  uploadedBtn.addEventListener('click', () => {
+    if (!state.diffBackgroundUploadDataUrl || state.diffBackgroundSelection === 'upload') {
+      return;
+    }
+    state.diffBackgroundSelection = 'upload';
+    loadGeneratorBackgroundImage();
+    renderControls();
+  });
+  presetWrap.appendChild(uploadedBtn);
+
+  wrap.appendChild(presetWrap);
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.textContent = t().labels.uploadBackground;
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.textContent = t().labels.clearUploadedBackground;
+  clearBtn.disabled = !state.diffBackgroundUploadDataUrl;
+
+  const hint = document.createElement('div');
+  hint.textContent = t().labels.backgroundHint;
+  hint.style.color = '#5b6678';
+  hint.style.fontSize = '13px';
+
+  const hiddenInput = document.createElement('input');
+  hiddenInput.type = 'file';
+  hiddenInput.accept = 'image/*';
+  hiddenInput.style.display = 'none';
+
+  uploadBtn.addEventListener('click', () => hiddenInput.click());
+  hiddenInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.diffBackgroundUploadDataUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!state.diffBackgroundUploadDataUrl) {
+        return;
+      }
+      state.diffBackgroundSelection = 'upload';
+      hiddenInput.value = '';
+      loadGeneratorBackgroundImage();
+      renderControls();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (!state.diffBackgroundUploadDataUrl) {
+      return;
+    }
+    state.diffBackgroundUploadDataUrl = '';
+    if (state.diffBackgroundSelection === 'upload') {
+      state.diffBackgroundSelection = 'bg1';
+    }
+    loadGeneratorBackgroundImage();
+    renderControls();
+  });
+
+  wrap.appendChild(uploadBtn);
+  wrap.appendChild(clearBtn);
+  wrap.appendChild(hint);
+  wrap.appendChild(hiddenInput);
   section.appendChild(wrap);
   return section;
 }
@@ -3144,11 +3447,9 @@ function renderControls() {
   }
 
   if (state.generator === 'diff') {
-    controlsPanel.appendChild(
-      buildTileSection(labels.sections.theme, 'theme', options.theme, (value) => labels.themeNames[value] || value)
-    );
-    controlsPanel.appendChild(applySectionToggle(buildDiffFormatSection(), 'diffFormat'));
     controlsPanel.appendChild(applySectionToggle(buildTileSection(labels.sections.type, 'type', options.type), 'type'));
+    controlsPanel.appendChild(buildDiffBackgroundSection());
+    controlsPanel.appendChild(applySectionToggle(buildDiffFormatSection(), 'diffFormat'));
     controlsPanel.appendChild(applySectionToggle(buildDeviceImageSection(), 'image'));
     controlsPanel.appendChild(applySectionToggle(buildLogoSection(), 'logo'));
     controlsPanel.appendChild(applySectionToggle(buildPriceSection(), 'price'));
@@ -3463,6 +3764,31 @@ function drawImageCropContain(img, crop, x, y, w, h) {
   ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, dx, dy, drawW, drawH);
 }
 
+function drawImageCover(img, x, y, w, h) {
+  const imageWidth = img.naturalWidth || img.width;
+  const imageHeight = img.naturalHeight || img.height;
+  if (!imageWidth || !imageHeight) {
+    return;
+  }
+
+  const imageRatio = imageWidth / imageHeight;
+  const boxRatio = w / h;
+  let cropW = imageWidth;
+  let cropH = imageHeight;
+  let cropX = 0;
+  let cropY = 0;
+
+  if (imageRatio > boxRatio) {
+    cropW = imageHeight * boxRatio;
+    cropX = (imageWidth - cropW) / 2;
+  } else {
+    cropH = imageWidth / boxRatio;
+    cropY = (imageHeight - cropH) / 2;
+  }
+
+  ctx.drawImage(img, cropX, cropY, cropW, cropH, x, y, w, h);
+}
+
 function loadDefaultLaptopImage() {
   defaultLaptopImageObj = new Image();
   defaultLaptopImageObj.onload = () => drawPoster();
@@ -3479,6 +3805,18 @@ function loadDefaultPcImage() {
     defaultPcImageObj = null;
   };
   defaultPcImageObj.src = DEFAULT_PC_IMAGE_SRC;
+}
+
+function loadGeneratorBackgroundImage() {
+  const source = state.diffBackgroundSelection === 'upload' && state.diffBackgroundUploadDataUrl
+    ? state.diffBackgroundUploadDataUrl
+    : (GENERATOR_BACKGROUND_PRESETS[state.diffBackgroundSelection] || GENERATOR_BACKGROUND_SRC);
+  generatorBackgroundImageObj = new Image();
+  generatorBackgroundImageObj.onload = () => drawPoster();
+  generatorBackgroundImageObj.onerror = () => {
+    generatorBackgroundImageObj = null;
+  };
+  generatorBackgroundImageObj.src = source;
 }
 
 function getDeviceImageBoxRect() {
@@ -3649,26 +3987,72 @@ function fitText(text, maxWidth, weight = 'bold', startSize = 34, minSize = 12, 
   return minSize;
 }
 
-function splitPriceDisplay() {
-  const value = (state.price || '').trim();
-  if (!value) {
-    return { symbol: '', value: '' };
-  }
-  const explicitMatch = value.match(/^([€$])\s*(.*)$/);
-  if (explicitMatch) {
-    return { symbol: explicitMatch[1], value: explicitMatch[2] || '' };
-  }
-  const currency = String(state.currency || '').trim();
+function resolveCurrencyParts(currencyValue = state.currency) {
+  const currency = String(currencyValue || '').trim();
   const upperCurrency = currency.toUpperCase();
-  let symbol = '';
   if (upperCurrency === 'EUR' || currency === '€') {
-    symbol = '€';
-  } else if (upperCurrency === 'USD' || currency === '$') {
-    symbol = '$';
-  } else if (currency) {
-    symbol = `${currency} `;
+    return { prefix: '€', suffix: '' };
   }
-  return { symbol, value };
+  if (upperCurrency === 'USD' || currency === '$') {
+    return { prefix: '$', suffix: '' };
+  }
+  if (upperCurrency === 'GBP' || currency === '£') {
+    return { prefix: '£', suffix: '' };
+  }
+  if (!currency) {
+    return { prefix: '', suffix: '' };
+  }
+  return { prefix: `${currency} `, suffix: '' };
+}
+
+function splitPriceDisplay(rawInput = state.price) {
+  const value = String(rawInput || '').trim();
+  if (!value) {
+    return { prefix: '', value: '', suffix: '' };
+  }
+  const explicitPrefixMatch = value.match(/^([$€£])\s*(.*)$/);
+  if (explicitPrefixMatch) {
+    return { prefix: explicitPrefixMatch[1], value: explicitPrefixMatch[2] || '', suffix: '' };
+  }
+  const explicitSuffixMatch = value.match(/^(.*?)([$€£])$/);
+  if (explicitSuffixMatch) {
+    return { prefix: explicitSuffixMatch[2], value: explicitSuffixMatch[1] || '', suffix: '' };
+  }
+  const { prefix, suffix } = resolveCurrencyParts();
+  return { prefix, value, suffix };
+}
+
+function getInlinePriceText(rawInput) {
+  const display = splitPriceDisplay(rawInput);
+  if (!display.value) {
+    return '';
+  }
+  const amount = splitPriceNumberParts(display.value);
+  const body = amount.whole || display.value;
+  const decimal = amount.hasDecimal ? `.${amount.fractional}` : '';
+  return `${display.prefix}${body}${decimal}${display.suffix}`.trim();
+}
+
+function measurePriceTagAmount(parts, mainSize, fractionalSize) {
+  ctx.font = `900 ${mainSize}px Segoe UI`;
+  const prefixWidth = parts.prefix ? ctx.measureText(parts.prefix).width : 0;
+  const wholeWidth = parts.whole ? ctx.measureText(parts.whole).width : 0;
+  const suffixWidth = parts.suffix ? ctx.measureText(parts.suffix).width : 0;
+  ctx.font = `900 ${fractionalSize}px Segoe UI`;
+  const fractionalWidth = parts.hasDecimal ? ctx.measureText(`.${parts.fractional}`).width : 0;
+  return prefixWidth + wholeWidth + fractionalWidth + suffixWidth;
+}
+
+function fitPriceTagAmountSize(parts, maxWidth, startSize = 62, minSize = 24) {
+  let mainSize = startSize;
+  while (mainSize > minSize) {
+    const fractionalSize = Math.max(14, Math.round(mainSize * 0.54));
+    if (measurePriceTagAmount(parts, mainSize, fractionalSize) <= maxWidth) {
+      return { mainSize, fractionalSize };
+    }
+    mainSize -= 1;
+  }
+  return { mainSize: minSize, fractionalSize: Math.max(14, Math.round(minSize * 0.54)) };
 }
 
 function splitPriceNumberParts(rawValue) {
@@ -3695,45 +4079,35 @@ function splitPriceNumberParts(rawValue) {
   return { whole: normalized, fractional: '', hasDecimal: false };
 }
 
-function getPriceBadgeRect(cardX, cardY, cardW, cardH) {
-  const priceParts = splitPriceDisplay();
+function getPriceTagRect(cardX, cardY, cardW) {
+  const priceParts = splitPriceDisplay(state.price);
   if (state.sectionEnabled.price === false || !priceParts.value) {
     return null;
   }
+  let baseX = cardX + cardW - 262;
+  let baseY = state.generator === 'diff' ? cardY + 42 : cardY + 34;
 
-  const amountParts = splitPriceNumberParts(priceParts.value);
-  const mainText = `${priceParts.symbol}${amountParts.whole || priceParts.value}`.trim();
-  ctx.save();
-  ctx.font = '900 56px Segoe UI';
-  const mainWidth = ctx.measureText(mainText).width;
-  ctx.font = '900 30px Segoe UI';
-  const fractionalWidth = amountParts.hasDecimal ? ctx.measureText(`.${amountParts.fractional}`).width : 0;
-  ctx.font = '800 18px Segoe UI';
-  const titleWidth = ctx.measureText((t().sections.price || 'PRICE').toUpperCase()).width;
-  ctx.restore();
-  const contentWidth = Math.max(titleWidth, mainWidth + fractionalWidth);
-  const wholeDigits = String(amountParts.whole || '').replace(/\D/g, '').length;
-  const baseBadgeSize = 250;
-  const badgeW = wholeDigits >= 4
-    ? Math.max(baseBadgeSize, Math.min(430, Math.ceil(contentWidth * 1.45 + 96)))
-    : baseBadgeSize;
-  const badgeH = badgeW;
-  const priceOffset = getLayoutOffset('price');
+  if (state.generator !== 'diff' && state.sectionEnabled.badges !== false && state.sectionEnabled.logo !== false && state.showLogoBadge) {
+    const logoOffset = getLayoutOffset('logo');
+    const logoBadgeX = cardX + cardW - (state.generator === 'charger' ? 178 : 184) + logoOffset.x;
+    baseX = Math.max(cardX + 24, logoBadgeX - 270);
+  }
+
+  const priceOffsetKey = state.generator === 'diff' ? 'diffPrice' : 'price';
+  const priceOffset = getLayoutOffset(priceOffsetKey);
+  const oldPriceText = getInlinePriceText(state.oldPrice || state.diffOldPrice);
   return {
-    x: cardX + cardW - badgeW - 24 + priceOffset.x,
-    y: cardY + cardH - badgeH - 22 + priceOffset.y,
-    w: badgeW,
-    h: badgeH,
-    title: (t().sections.price || 'PRICE').toUpperCase(),
-    symbol: priceParts.symbol,
-    whole: amountParts.whole || priceParts.value,
-    fractional: amountParts.fractional,
-    hasDecimal: amountParts.hasDecimal,
+    x: baseX + priceOffset.x,
+    y: baseY + priceOffset.y,
+    w: 238,
+    h: 88,
+    oldPriceText,
+    oldPriceHeight: oldPriceText ? 32 : 0,
   };
 }
 
 function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
-  const priceRect = getPriceBadgeRect(cardX, cardY, cardW, cardH);
+  const priceRect = getPriceTagRect(cardX, cardY, cardW);
   if (!priceRect) {
     return;
   }
@@ -3742,58 +4116,100 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
     y: badgeY,
     w: badgeW,
     h: badgeH,
-    title: priceTitle,
-    symbol,
-    whole,
-    fractional,
-    hasDecimal,
+    oldPriceText,
+    oldPriceHeight,
   } = priceRect;
-
-  const badgeColor = isHexColor(theme.priceBox) ? theme.priceBox : '#ff0050';
-  drawCleanPriceBadgeShape(badgeX, badgeY, badgeW, badgeH, badgeColor);
+  const display = splitPriceDisplay(state.price);
+  const amount = splitPriceNumberParts(display.value);
+  const badgeColor = isHexColor(theme.priceBox) ? theme.priceBox : '#ff2128';
+  const textColor = isHexColor(theme.priceText) ? theme.priceText : '#ffffff';
+  const amountParts = {
+    prefix: display.prefix,
+    whole: amount.whole || display.value,
+    fractional: amount.fractional,
+    hasDecimal: amount.hasDecimal,
+    suffix: display.suffix,
+  };
+  const titleText = String(t().sections.price || 'Price').toUpperCase();
+  const titleSize = fitText(titleText, badgeW - 40, '800', 18, 10, 'Segoe UI');
+  const { mainSize, fractionalSize } = fitPriceTagAmountSize(amountParts, badgeW - 34, 62, 25);
+  const badgeGradient = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeW, badgeY + badgeH);
+  badgeGradient.addColorStop(0, shadeHexColor(badgeColor, 0.18));
+  badgeGradient.addColorStop(1, shadeHexColor(badgeColor, -0.1));
 
   ctx.save();
+  drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 18, badgeGradient);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(badgeX + badgeW * 0.58, badgeY);
+  ctx.lineTo(badgeX + badgeW, badgeY);
+  ctx.lineTo(badgeX + badgeW, badgeY + badgeH * 0.42);
+  ctx.closePath();
+  ctx.fill();
+
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = 'rgba(31,26,23,0.88)';
-
-  const titleY = badgeY + Math.round(badgeH * 0.28);
-  const titleSize = fitText(priceTitle, Math.round(badgeW * 0.5), '800', Math.round(badgeW * 0.08), 12, 'Segoe UI');
-  ctx.lineWidth = Math.max(2, Math.round(titleSize * 0.1));
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = 'rgba(255,255,255,0.94)';
   ctx.font = `800 ${titleSize}px Segoe UI`;
-  ctx.strokeText(priceTitle, badgeX + badgeW / 2, titleY);
-  ctx.fillText(priceTitle, badgeX + badgeW / 2, titleY);
+  ctx.fillText(titleText, badgeX + (badgeW / 2), badgeY + 21);
 
-  const mainText = `${symbol}${whole}`;
-  const mainSize = fitText(mainText, Math.round(badgeW * 0.54), '900', Math.round(badgeW * 0.2), 26, 'Segoe UI');
-  const fractionalText = hasDecimal ? `.${fractional}` : '';
-  const fractionalSize = Math.max(16, Math.round(mainSize * 0.56));
-  ctx.font = `900 ${mainSize}px Segoe UI`;
-  const mainWidth = ctx.measureText(mainText).width;
-  ctx.font = `900 ${fractionalSize}px Segoe UI`;
-  const fractionalWidth = fractionalText ? ctx.measureText(fractionalText).width : 0;
-  const totalWidth = mainWidth + fractionalWidth;
-  const amountCenterY = badgeY + Math.round(badgeH * 0.58);
-  const amountStartX = badgeX + ((badgeW - totalWidth) / 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(badgeX + 34, badgeY + 30);
+  ctx.lineTo(badgeX + badgeW - 34, badgeY + 30);
+  ctx.stroke();
 
+  const totalWidth = measurePriceTagAmount(amountParts, mainSize, fractionalSize);
+  const amountStartX = badgeX + Math.round((badgeW - totalWidth) / 2);
+  const amountBaselineY = badgeY + Math.round(badgeH * 0.82);
+  const fractionalText = amountParts.hasDecimal ? `.${amountParts.fractional}` : '';
   ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = textColor;
   ctx.font = `900 ${mainSize}px Segoe UI`;
-  ctx.lineWidth = Math.max(3, Math.round(mainSize * 0.12));
-  ctx.strokeText(mainText, amountStartX, amountCenterY);
-  ctx.fillText(mainText, amountStartX, amountCenterY);
+  const prefixWidth = amountParts.prefix ? ctx.measureText(amountParts.prefix).width : 0;
+  const wholeWidth = amountParts.whole ? ctx.measureText(amountParts.whole).width : 0;
+  const suffixWidth = amountParts.suffix ? ctx.measureText(amountParts.suffix).width : 0;
+
+  let cursorX = amountStartX;
+  if (amountParts.prefix) {
+    ctx.fillText(amountParts.prefix, cursorX, amountBaselineY);
+    cursorX += prefixWidth;
+  }
+  ctx.fillText(amountParts.whole, cursorX, amountBaselineY);
+  cursorX += wholeWidth;
 
   if (fractionalText) {
-    const fractionalY = amountCenterY + Math.round(mainSize * 0.16);
     ctx.font = `900 ${fractionalSize}px Segoe UI`;
-    ctx.lineWidth = Math.max(2, Math.round(fractionalSize * 0.12));
-    ctx.strokeText(fractionalText, amountStartX + mainWidth, fractionalY);
-    ctx.fillText(fractionalText, amountStartX + mainWidth, fractionalY);
+    ctx.fillText(fractionalText, cursorX, amountBaselineY - Math.round(mainSize * 0.18));
+    cursorX += ctx.measureText(fractionalText).width;
+    ctx.font = `900 ${mainSize}px Segoe UI`;
+  }
+  if (amountParts.suffix) {
+    ctx.fillText(amountParts.suffix, cursorX, amountBaselineY);
+    cursorX += suffixWidth;
+  }
+
+  if (oldPriceText) {
+    const oldSize = fitText(oldPriceText, badgeW - 22, '700', 26, 12, 'Segoe UI');
+    const oldY = badgeY + badgeH + 24;
+    ctx.font = `700 ${oldSize}px Segoe UI`;
+    const textWidth = ctx.measureText(oldPriceText).width;
+    const oldX = badgeX + Math.round((badgeW - textWidth) / 2);
+    ctx.fillStyle = '#3f4048';
+    ctx.fillText(oldPriceText, oldX, oldY);
+    ctx.strokeStyle = '#5a5d67';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(oldX - 4, oldY - Math.round(oldSize * 0.42));
+    ctx.lineTo(oldX + textWidth + 4, oldY - Math.round(oldSize * 0.42));
+    ctx.stroke();
   }
   ctx.restore();
 
-  registerDraggableRegion('price', badgeX, badgeY, badgeW, badgeH);
-  registerRemovableElement(badgeX, badgeY, badgeW, badgeH, () => {
+  registerDraggableRegion(state.generator === 'diff' ? 'diffPrice' : 'price', badgeX, badgeY, badgeW, badgeH + oldPriceHeight);
+  registerRemovableElement(badgeX, badgeY, badgeW, badgeH + oldPriceHeight, () => {
     state.sectionEnabled.price = false;
   });
 }
@@ -4686,9 +5102,20 @@ function drawDiffLeafCluster(x, y, scale = 1) {
 }
 
 function drawDiffFormatBackdrop(cardX, cardY, cardW, cardH) {
+  const bgX = 0;
+  const bgY = 0;
+  const bgW = canvas.width;
+  const bgH = canvas.height;
+
   ctx.save();
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(cardX, cardY, cardW, cardH);
+  ctx.fillRect(bgX, bgY, bgW, bgH);
+
+  if (generatorBackgroundImageObj?.complete) {
+    drawImageCover(generatorBackgroundImageObj, bgX, bgY, bgW, bgH);
+    ctx.restore();
+    return;
+  }
 
   const waveStroke = 'rgba(220, 224, 229, 0.68)';
   ctx.strokeStyle = waveStroke;
@@ -4696,10 +5123,10 @@ function drawDiffFormatBackdrop(cardX, cardY, cardW, cardH) {
   for (let i = 0; i < 5; i += 1) {
     ctx.beginPath();
     ctx.ellipse(
-      cardX + (cardW * 0.58),
-      cardY + 80 + (i * 72),
-      cardW * 0.72,
-      cardH * 0.30,
+      bgX + (bgW * 0.58),
+      bgY + 80 + (i * 72),
+      bgW * 0.72,
+      bgH * 0.30,
       0,
       0.2,
       Math.PI + 0.1
@@ -4707,10 +5134,10 @@ function drawDiffFormatBackdrop(cardX, cardY, cardW, cardH) {
     ctx.stroke();
   }
 
-  drawDiffLeafCluster(cardX + 22, cardY + 26, 0.9);
-  drawDiffLeafCluster(cardX + cardW - 34, cardY + 24, 0.85);
-  drawDiffLeafCluster(cardX + 26, cardY + cardH - 42, 1);
-  drawDiffLeafCluster(cardX + cardW - 40, cardY + cardH - 40, 0.95);
+  drawDiffLeafCluster(bgX + 22, bgY + 26, 0.9);
+  drawDiffLeafCluster(bgX + bgW - 34, bgY + 24, 0.85);
+  drawDiffLeafCluster(bgX + 26, bgY + bgH - 42, 1);
+  drawDiffLeafCluster(bgX + bgW - 40, bgY + bgH - 40, 0.95);
   ctx.restore();
 }
 
@@ -4738,15 +5165,94 @@ function drawDiffSquareBadge(x, y, w, h, colorA, colorB, topText, mainText, subT
   }
 }
 
+function drawUnderlinedText(x, baselineY, text, underline, fontSize, color) {
+  if (!underline || !text) {
+    return;
+  }
+  const textWidth = ctx.measureText(text).width;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1.5, Math.round(fontSize * 0.08));
+  ctx.beginPath();
+  const underlineY = baselineY + Math.max(4, Math.round(fontSize * 0.12));
+  ctx.moveTo(x, underlineY);
+  ctx.lineTo(x + textWidth, underlineY);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function fitArcTextSize(text, radius, arcSpan, weight = '700', startSize = 26, minSize = 10, family = 'Segoe UI') {
+  let size = startSize;
+  const maxArcWidth = radius * arcSpan * 0.92;
+  while (size > minSize) {
+    ctx.font = `${weight} ${size}px ${family}`;
+    if (ctx.measureText(text).width <= maxArcWidth) {
+      return size;
+    }
+    size -= 1;
+  }
+  return minSize;
+}
+
+function drawArcText(text, cx, cy, radius, centerAngle, clockwise, fontSize, fillColor, strokeColor, strokeWidth = 2, family = 'Segoe UI') {
+  const raw = String(text || '').trim();
+  if (!raw) {
+    return;
+  }
+  const chars = (clockwise ? raw : raw.split('').reverse().join('')).split('');
+  ctx.save();
+  ctx.font = `700 ${fontSize}px ${family}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const letterSpacing = Math.max(1, Math.round(fontSize * 0.08));
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
+  const totalAngle = widths.reduce((sum, width) => sum + ((width + letterSpacing) / radius), 0);
+  let angle = centerAngle - (totalAngle / 2);
+
+  chars.forEach((ch, index) => {
+    const width = widths[index];
+    angle += (width / 2) / radius;
+    const x = cx + (Math.cos(angle) * radius);
+    const y = cy + (Math.sin(angle) * radius);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle + (clockwise ? Math.PI / 2 : -Math.PI / 2));
+    ctx.lineJoin = 'round';
+    if (strokeWidth > 0) {
+      ctx.lineWidth = strokeWidth;
+      ctx.strokeStyle = strokeColor;
+      ctx.strokeText(ch, 0, 0);
+    }
+    ctx.fillStyle = fillColor;
+    ctx.fillText(ch, 0, 0);
+    ctx.restore();
+    angle += ((width / 2) + letterSpacing) / radius;
+  });
+  ctx.restore();
+}
+
+function drawTintedImage(img, x, y, w, h, color) {
+  ctx.save();
+  ctx.drawImage(img, x, y, w, h);
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+
 function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   drawDiffFormatBackdrop(cardX, cardY, cardW, cardH);
 
   const headerOffset = getLayoutOffset('diffHeader');
   const headerX = cardX + 46 + headerOffset.x;
   const headerY = cardY + 70 + headerOffset.y;
+  const headerBaselineY = headerY;
   const headerH = 88;
   const hasLogoImage = !!(logoImageObj && logoImageObj.complete && state.sectionEnabled.logo !== false);
+  const companyText = String(state.diffBrandText || '').trim();
+  const modelText = String(state.diffModelTitle || '').trim();
   let modelStartX = headerX;
+  let headerRegionWidth = 0;
 
   if (hasLogoImage) {
     const logoW = 190;
@@ -4756,74 +5262,45 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
     ctx.drawImage(logoImageObj, headerX, headerY - 52, drawW, drawH);
     logoImageBodyRect = { x: headerX, y: headerY - 52, w: drawW, h: drawH };
     modelStartX = headerX + logoW + 18;
+    headerRegionWidth = logoW + 18;
     registerDraggableRegion('logo', headerX, headerY - 52, drawW, drawH);
   } else {
     logoImageBodyRect = null;
-    const brandText = (state.brand || 'DELL').toUpperCase();
-    ctx.fillStyle = '#1471bf';
-    ctx.font = `800 ${fitText(brandText, 210, '800', 54, 24, 'Segoe UI')}px Segoe UI`;
-    ctx.fillText(brandText, headerX, headerY);
-    modelStartX = headerX + Math.min(230, ctx.measureText(brandText).width + 18);
-  }
-
-  const modelText = (state.diffModelTitle || 'LATITUDE 5400').toUpperCase();
-  const modelW = Math.max(180, cardW - (modelStartX - cardX) - 320);
-  ctx.fillStyle = '#1471bf';
-  const modelSize = fitText(modelText, modelW, '400', 62, 22, 'Segoe UI');
-  ctx.font = `400 ${modelSize}px Segoe UI`;
-  ctx.fillText(modelText, modelStartX, headerY + 2);
-  registerDraggableRegion('diffHeader', headerX, headerY - 56, modelW + 220, headerH);
-
-  if (state.sectionEnabled.price !== false && (state.price || '').trim()) {
-    const priceOffset = getLayoutOffset('price');
-    const badgeX = cardX + cardW - 314 + priceOffset.x;
-    const badgeY = cardY + 42 + priceOffset.y;
-    const badgeW = 226;
-    const badgeH = 88;
-    const currentPrice = String(state.price || '').trim();
-    const oldPrice = String(state.diffOldPrice || '').trim();
-    drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 18, '#ff2347');
-    drawCenteredBadgeLines(currentPrice.includes('€') ? currentPrice : `${currentPrice}€`, badgeX + 20, badgeY + 10, badgeW - 40, 60, '#ffffff', 62, 22, '900', 1);
-    if (oldPrice) {
-      ctx.save();
-      ctx.fillStyle = '#4a3d42';
-      const oldText = oldPrice.includes('€') ? oldPrice : `${oldPrice}€`;
-      const oldSize = fitText(oldText, badgeW - 30, '500', 24, 12, 'Segoe UI');
-      ctx.font = `500 ${oldSize}px Segoe UI`;
-      const tx = badgeX + badgeW - ctx.measureText(oldText).width - 8;
-      const ty = badgeY + badgeH + 24;
-      ctx.fillText(oldText, tx, ty);
-      ctx.strokeStyle = '#8c4d5c';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(tx - 6, ty - oldSize / 2);
-      ctx.lineTo(tx + ctx.measureText(oldText).width + 6, ty - oldSize / 2);
-      ctx.stroke();
-      ctx.restore();
+    if (companyText) {
+      const companyColor = String(state.diffBrandColor || '#1471bf');
+      const companyWeight = state.diffBrandBold ? '800' : '400';
+      const companyFont = `${state.diffBrandItalic ? 'italic ' : ''}${companyWeight}`;
+      const companySize = fitText(companyText, 210, companyFont, Math.max(18, Number(state.diffBrandFontSize) || 54), 18, 'Segoe UI');
+      ctx.fillStyle = companyColor;
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = `${companyFont} ${companySize}px Segoe UI`;
+      ctx.fillText(companyText, headerX, headerBaselineY);
+      drawUnderlinedText(headerX, headerBaselineY, companyText, !!state.diffBrandUnderline, companySize, companyColor);
+      const companyWidth = ctx.measureText(companyText).width;
+      modelStartX = headerX + Math.min(230, companyWidth + 18);
+      headerRegionWidth = Math.max(headerRegionWidth, Math.min(230, companyWidth + 18));
     }
-    registerDraggableRegion('price', badgeX, badgeY, badgeW, badgeH + 34);
-    registerRemovableElement(badgeX, badgeY, badgeW, badgeH + 34, () => {
-      state.sectionEnabled.price = false;
-    });
   }
 
-  const leftOffset = getLayoutOffset('diffLeftPromo');
-  const leftX = cardX + 74 + leftOffset.x;
-  const leftY = cardY + 272 + leftOffset.y;
-  ctx.fillStyle = '#b9b9b9';
-  drawCenteredBadgeLines((state.diffPromoLead || 'TESTED ON').toUpperCase(), leftX, leftY, 220, 70, '#b6b6b6', 42, 18, '300', 2);
-  drawCenteredBadgeLines((state.diffPromoValue || '50').toUpperCase(), leftX, leftY + 56, 220, 74, '#5fc53a', 76, 28, '800', 1);
-  drawCenteredBadgeLines((state.diffPromoTail || 'POINTS OF CONTROL').toUpperCase(), leftX, leftY + 128, 220, 110, '#9d9d9d', 38, 16, '300', 3);
-  ctx.save();
-  ctx.fillStyle = '#3f4dd7';
-  ctx.fillRect(leftX + 10, leftY + 252, 86, 56);
-  ctx.fillStyle = '#ff2f7f';
-  ctx.fillRect(leftX + 90, leftY + 238, 110, 74);
-  ctx.fillStyle = '#111111';
-  ctx.font = `700 ${fitText((state.diffPromoBadge || 'REFURBISHED IN FRANCE').toUpperCase(), 158, '700', 20, 9, 'Segoe UI')}px Segoe UI`;
-  drawCenteredBadgeLines((state.diffPromoBadge || 'REFURBISHED IN FRANCE').toUpperCase(), leftX + 20, leftY + 248, 170, 62, '#111111', 22, 10, '700', 3);
-  ctx.restore();
-  registerDraggableRegion('diffLeftPromo', leftX, leftY, 220, 320);
+  if (modelText) {
+    const modelColor = String(state.diffModelColor || '#1471bf');
+    const modelW = Math.max(180, cardW - (modelStartX - cardX) - 320);
+    const modelWeight = state.diffModelBold ? '800' : '400';
+    const modelFont = `${state.diffModelItalic ? 'italic ' : ''}${modelWeight}`;
+    const modelSize = fitText(modelText, modelW, modelFont, Math.max(18, Number(state.diffModelFontSize) || 62), 18, 'Segoe UI');
+    ctx.fillStyle = modelColor;
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `${modelFont} ${modelSize}px Segoe UI`;
+    ctx.fillText(modelText, modelStartX, headerBaselineY);
+    drawUnderlinedText(modelStartX, headerBaselineY, modelText, !!state.diffModelUnderline, modelSize, modelColor);
+    headerRegionWidth = Math.max(headerRegionWidth, (modelStartX - headerX) + ctx.measureText(modelText).width);
+  }
+
+  if (headerRegionWidth > 0) {
+    registerDraggableRegion('diffHeader', headerX, headerY - 56, headerRegionWidth, headerH);
+  }
+
+  drawPriceBadge(cardX, cardY, cardW, cardH, theme);
 
   const currentDeviceImages = getCurrentDeviceImages();
   const imageBox = getDeviceImageBoxRect();
@@ -4840,44 +5317,6 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
     deviceImageHandles = [];
     drawDefaultDeviceImage(defaultPcImageObj, DEFAULT_PC_IMAGE_CROP, getDefaultPcImageRect(), DEFAULT_PC_IMAGE_ID, isDefaultDeviceImageSelected);
   }
-
-  const warrantyOffset = getLayoutOffset('diffWarranty');
-  const warrantyX = cardX + cardW - 300 + warrantyOffset.x;
-  const warrantyY = cardY + 250 + warrantyOffset.y;
-  ctx.save();
-  ctx.fillStyle = '#ffd90b';
-  ctx.beginPath();
-  ctx.moveTo(warrantyX + 24, warrantyY + 18);
-  ctx.quadraticCurveTo(warrantyX + 40, warrantyY - 6, warrantyX + 76, warrantyY + 12);
-  ctx.quadraticCurveTo(warrantyX + 118, warrantyY - 6, warrantyX + 168, warrantyY + 12);
-  ctx.quadraticCurveTo(warrantyX + 214, warrantyY - 10, warrantyX + 238, warrantyY + 16);
-  ctx.quadraticCurveTo(warrantyX + 256, warrantyY + 44, warrantyX + 236, warrantyY + 72);
-  ctx.quadraticCurveTo(warrantyX + 252, warrantyY + 116, warrantyX + 220, warrantyY + 138);
-  ctx.quadraticCurveTo(warrantyX + 170, warrantyY + 162, warrantyX + 112, warrantyY + 150);
-  ctx.quadraticCurveTo(warrantyX + 62, warrantyY + 170, warrantyX + 22, warrantyY + 140);
-  ctx.quadraticCurveTo(warrantyX - 2, warrantyY + 112, warrantyX + 8, warrantyY + 74);
-  ctx.quadraticCurveTo(warrantyX - 6, warrantyY + 42, warrantyX + 24, warrantyY + 18);
-  ctx.fill();
-  ctx.restore();
-  drawCenteredBadgeLines(String(state.diffWarrantyNumber || '1'), warrantyX + 6, warrantyY + 6, 84, 126, '#111111', 84, 34, '300', 1);
-  drawCenteredBadgeLines(`${state.diffWarrantyUnit || 'YEAR'} ${state.diffWarrantyTitle || 'GUARANTEE'}`, warrantyX + 80, warrantyY + 28, 160, 86, '#111111', 42, 16, '400', 3);
-  drawCenteredBadgeLines((state.diffWarrantySubtitle || 'Parts and Labor').toUpperCase(), warrantyX + 72, warrantyY + 108, 170, 34, '#111111', 18, 10, '700', 2);
-  registerDraggableRegion('diffWarranty', warrantyX, warrantyY, 250, 160);
-
-  const ecoOffset = getLayoutOffset('diffEco');
-  const ecoX = cardX + cardW - 262 + ecoOffset.x;
-  const ecoY = cardY + 540 + ecoOffset.y;
-  ctx.save();
-  ctx.strokeStyle = '#84d33b';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.arc(ecoX + 48, ecoY + 44, 34, 0, Math.PI * 2);
-  ctx.stroke();
-  drawDiffLeafCluster(ecoX + 48, ecoY + 42, 1);
-  ctx.restore();
-  drawCenteredBadgeLines((state.diffEcoLead || 'COMMITTED TO').toUpperCase(), ecoX + 86, ecoY + 2, 180, 42, '#7c7c7c', 20, 10, '500', 2);
-  drawCenteredBadgeLines((state.diffEcoHighlight || 'THE ENVIRONMENT').toUpperCase(), ecoX + 86, ecoY + 34, 200, 70, '#54bf39', 28, 12, '700', 2);
-  registerDraggableRegion('diffEco', ecoX, ecoY, 260, 96);
 
   const bottomOffset = getLayoutOffset('diffBottomBadges');
   const badgeY = cardY + cardH - 210 + bottomOffset.y;
@@ -4975,28 +5414,34 @@ function drawPoster() {
   const cardY = 30;
   const cardW = w - 56;
   const cardH = h - 60;
+  const isGeneratorPoster = state.generator === 'diff';
 
-  const frameGrad = ctx.createLinearGradient(0, 0, 0, h);
-  frameGrad.addColorStop(0, theme.frameTop);
-  frameGrad.addColorStop(1, theme.frameBottom);
-  ctx.fillStyle = frameGrad;
-  ctx.fillRect(0, 0, w, h);
+  if (isGeneratorPoster) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+  } else {
+    const frameGrad = ctx.createLinearGradient(0, 0, 0, h);
+    frameGrad.addColorStop(0, theme.frameTop);
+    frameGrad.addColorStop(1, theme.frameBottom);
+    ctx.fillStyle = frameGrad;
+    ctx.fillRect(0, 0, w, h);
 
-  ctx.globalAlpha = 0.2;
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(cardX + cardW - 120, cardY + 110, 120, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 0.1;
-  ctx.beginPath();
-  ctx.arc(cardX + 150, cardY + cardH - 120, 100, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cardX + cardW - 120, cardY + 110, 120, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.1;
+    ctx.beginPath();
+    ctx.arc(cardX + 150, cardY + cardH - 120, 100, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
 
-  drawRoundedRect(cardX, cardY, cardW, cardH, 2, theme.cardBg);
-  ctx.strokeStyle = theme.cardStroke;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(cardX, cardY, cardW, cardH);
+    drawRoundedRect(cardX, cardY, cardW, cardH, 2, theme.cardBg);
+    ctx.strokeStyle = theme.cardStroke;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cardX, cardY, cardW, cardH);
+  }
 
   if (state.generator === 'charger') {
     isStorageBadgeSelected = false;
@@ -6621,6 +7066,7 @@ setUiLanguage();
 renderControls();
 loadDefaultPcImage();
 loadDefaultLaptopImage();
+loadGeneratorBackgroundImage();
 drawPoster();
 
 

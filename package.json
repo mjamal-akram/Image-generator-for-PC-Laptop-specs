@@ -6,7 +6,8 @@
   "scripts": {
     "start": "set ELECTRON_RUN_AS_NODE=&& electron --no-sandbox .",
     "dev": "set ELECTRON_RUN_AS_NODE=&& electron --no-sandbox .",
-    "check": "node --check main.js && node --check renderer.js"
+    "check": "node --check main.js && node --check renderer.js",
+    "build:portable": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-portable.ps1"
   },
   "devDependencies": {
     "electron": "^31.7.7",
