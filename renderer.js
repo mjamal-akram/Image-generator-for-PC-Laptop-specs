@@ -4,6 +4,9 @@
   guarantee: { x: -122, y: 444 },
   logo: { x: 0, y: 8 },
   device: { x: 132, y: -44 },
+  diffDevice: { x: 0, y: 0 },
+  diffPointsText: { x: 0, y: 0 },
+  diffReconditioned: { x: 0, y: 0 },
   tags: { x: 10, y: 8 },
   spec: { x: -4, y: 18 },
   brand: { x: 394, y: -884 },
@@ -18,7 +21,7 @@
   chargerCompatibility: { x: 0, y: 0 },
 };
 
-const LAYOUT_PREFERENCES_STORAGE_KEY = 'jam_iw-layout-preferences-v3';
+const LAYOUT_PREFERENCES_STORAGE_KEY = 'jam_iw-layout-preferences-v5';
 const DEFAULT_LOGO_SIZE = 56;
 const DEFAULT_LOGO_BADGE_SIZE = { w: 150, h: 150 };
 const DEFAULT_STORAGE_BADGE_SIZE = { w: 340, h: 108 };
@@ -33,11 +36,22 @@ const DEFAULT_LAPTOP_IMAGE_SRC = 'assets/default-laptop.png';
 const DEFAULT_LAPTOP_IMAGE_CROP = { x: 0, y: 0, w: 512, h: 488 };
 const DEFAULT_LAPTOP_IMAGE_ID = '__default_laptop_image__';
 const DEFAULT_LAPTOP_IMAGE_SIZE = { w: 510, h: 360 };
+const DEFAULT_DIFF_SIDE_GUARANTEE_SIZE = { w: 250, h: 250 };
+const DEFAULT_DIFF_POINTS_TEXT_SIZE = { w: 250, h: 250 };
+const DEFAULT_DIFF_RECONDITIONED_SIZE = { w: 215, h: 215 };
+const GENERATOR_POINTS_TEXT_SRC = 'assets/generator-points-text.png';
+const GENERATOR_RECONDITIONED_SRC = 'assets/generator-reconditioned.png';
 const GENERATOR_BACKGROUND_SRC = 'assets/generator-bg.jpg';
 const GENERATOR_BACKGROUND_PRESETS = {
   bg1: 'assets/generator-bg.jpg',
   bg2: 'assets/generator-bg-2.jpg',
   bg3: 'assets/generator-bg-3.jpg',
+};
+const GENERATOR_GUARANTEE_PRESETS = {
+  '1m': 'assets/generator-guarantee-1m.png',
+  '3m': 'assets/generator-guarantee-3m.png',
+  '6m': 'assets/generator-guarantee-6m.png',
+  '12m': 'assets/generator-guarantee-12m.png',
 };
 const WALLPAPER_RESOLUTIONS = [
   { value: '1920x1080', label: 'Full HD 1920 x 1080' },
@@ -94,6 +108,8 @@ function readSavedLayoutPreferences() {
       guaranteeBadgeSize: normalizeBoxSize(parsed?.guaranteeBadgeSize, DEFAULT_GUARANTEE_BADGE_SIZE),
       defaultPcImageSize: normalizeBoxSize(parsed?.defaultPcImageSize, DEFAULT_PC_IMAGE_SIZE),
       defaultLaptopImageSize: normalizeBoxSize(parsed?.defaultLaptopImageSize, DEFAULT_LAPTOP_IMAGE_SIZE),
+      diffPointsTextSize: normalizeBoxSize(parsed?.diffPointsTextSize, DEFAULT_DIFF_POINTS_TEXT_SIZE),
+      diffReconditionedSize: normalizeBoxSize(parsed?.diffReconditionedSize, DEFAULT_DIFF_RECONDITIONED_SIZE),
       stackBadgeSizes: parsed?.stackBadgeSizes || null,
       osBadgeSizeAdjusted: !!parsed?.osBadgeSizeAdjusted,
       guaranteeBadgeSizeAdjusted: !!parsed?.guaranteeBadgeSizeAdjusted,
@@ -119,6 +135,8 @@ function persistLayoutPreferences() {
         guaranteeBadgeSize: state.guaranteeBadgeSize,
         defaultPcImageSize: state.defaultPcImageSize,
         defaultLaptopImageSize: state.defaultLaptopImageSize,
+        diffPointsTextSize: state.diffPointsTextSize,
+        diffReconditionedSize: state.diffReconditionedSize,
         stackBadgeSizes: state.stackBadgeSizes,
         osBadgeSizeAdjusted: !!state.osBadgeSizeAdjusted,
         guaranteeBadgeSizeAdjusted: !!state.guaranteeBadgeSizeAdjusted,
@@ -139,6 +157,8 @@ function resetLayoutToDefault() {
   state.guaranteeBadgeSize = saved?.guaranteeBadgeSize || { ...DEFAULT_GUARANTEE_BADGE_SIZE };
   state.defaultPcImageSize = saved?.defaultPcImageSize || { ...DEFAULT_PC_IMAGE_SIZE };
   state.defaultLaptopImageSize = saved?.defaultLaptopImageSize || { ...DEFAULT_LAPTOP_IMAGE_SIZE };
+  state.diffPointsTextSize = saved?.diffPointsTextSize || { ...DEFAULT_DIFF_POINTS_TEXT_SIZE };
+  state.diffReconditionedSize = saved?.diffReconditionedSize || { ...DEFAULT_DIFF_RECONDITIONED_SIZE };
   state.stackBadgeSizes = saved?.stackBadgeSizes || cloneDefaultStackBadgeSizes();
   state.osBadgeSizeAdjusted = !!saved?.osBadgeSizeAdjusted;
   state.guaranteeBadgeSizeAdjusted = !!saved?.guaranteeBadgeSizeAdjusted;
@@ -150,10 +170,13 @@ function resetLayoutToDefault() {
   state.sectionEnabled.specifications = true;
   state.sectionEnabled.battery = true;
   state.sectionEnabled.guarantee = true;
+  state.sectionEnabled.pointsText = true;
+  state.sectionEnabled.reconditioned = true;
   state.sectionEnabled.price = true;
   state.sectionEnabled.contact = true;
   state.sectionEnabled.badges = true;
   state.sectionEnabled.diffFormat = true;
+  state.sectionEnabled.diffLeftPromo = true;
   state.showIntelBadge = true;
   state.showScreenBadge = true;
   state.showBatteryBadge = true;
@@ -174,6 +197,14 @@ const state = {
   keyboardBacklight: 'Yes',
   storageType: 'SSD',
   storageSize: '480 GB',
+  diffExtraStorageEnabled: false,
+  diffExtraStorageType: 'HDD',
+  diffExtraStorageSize: '1 TB',
+  diffProcessorBadgeColor: '#1b9fea',
+  diffRamBadgeColor: '#65c3c5',
+  diffStorageBadgeColor: '#f2c246',
+  diffExtraStorageBadgeColor: '#8a98ab',
+  diffOsBadgeColor: '#1d9be4',
   titleTop: 'ENTER TEXT HERE',
   titleBottom: '',
   brand: 'Dell',
@@ -212,6 +243,14 @@ const state = {
   diffBrandColor: '#1471bf',
   diffBackgroundSelection: 'bg1',
   diffBackgroundUploadDataUrl: '',
+  diffPointsTextUploadDataUrl: '',
+  diffPointsTextRotation: 0,
+  diffPointsTextSize: { ...DEFAULT_DIFF_POINTS_TEXT_SIZE },
+  diffReconditionedUploadDataUrl: '',
+  diffReconditionedRotation: 0,
+  diffReconditionedSize: { ...DEFAULT_DIFF_RECONDITIONED_SIZE },
+  diffGuaranteeSelection: '1m',
+  diffGuaranteeUploadDataUrl: '',
   chargerTitle: 'FAST CHARGER',
   chargerType: 'USB-C Charger',
   chargerPower: '65W',
@@ -228,10 +267,16 @@ const state = {
   diffModelItalic: false,
   diffModelUnderline: false,
   diffModelColor: '#1471bf',
-  diffPromoLead: 'TESTED ON',
-  diffPromoValue: '50',
-  diffPromoTail: 'POINTS OF CONTROL',
+  diffPromoLead: 'TESTE SUR',
+  diffPromoValue: '20 POINTS',
+  diffPromoTail: 'DE CONTROLE',
   diffPromoBadge: 'REFURBISHED IN FRANCE',
+  diffPromoTextColor: '#171717',
+  diffPromoValueColor: '#4dbb35',
+  diffPromoFontSize: 28,
+  diffPromoBold: false,
+  diffPromoItalic: false,
+  diffPromoUnderline: false,
   diffWarrantyNumber: '1',
   diffWarrantyUnit: 'YEAR',
   diffWarrantyTitle: 'GUARANTEE',
@@ -283,6 +328,8 @@ const state = {
     type: true,
     image: true,
     logo: true,
+    pointsText: true,
+    reconditioned: true,
     charger: true,
     titleBadge: true,
     os: true,
@@ -299,6 +346,7 @@ const state = {
     contact: true,
     badges: true,
     diffFormat: true,
+    diffLeftPromo: true,
   },
 };
 
@@ -320,6 +368,8 @@ const i18n = {
       image: 'Device Image',
       chargerImage: 'Charger Image',
       logo: 'Logo',
+      pointsText: 'Points Text',
+      reconditioned: 'PC Reconditionne',
       os: 'Operating System',
       ram: 'RAM',
       keyboard: 'Keyboard Backlight',
@@ -349,6 +399,13 @@ const i18n = {
       storageSize: 'Capacity',
       storageCustom: 'Custom Capacity',
       storageHint: 'Type custom value (example: 750 GB)',
+      extraStorageToggle: 'Add Additional Storage Badge',
+      extraStorageType: 'Additional Badge Type',
+      extraStorageTypeHint: 'Example: HDD or NVMe',
+      extraStorageSize: 'Additional Badge Capacity',
+      extraStorageSizeHint: 'Example: 1 TB',
+      badgeColor: 'Badge Color',
+      extraBadgeColor: 'Additional Badge Color',
       brand: 'Brand',
       processor: 'Processor',
       processorBadgeText: 'Processor Badge Text',
@@ -406,6 +463,14 @@ const i18n = {
       uploadBackground: 'Upload Background',
       clearUploadedBackground: 'Clear Uploaded Background',
       backgroundHint: 'Choose a preset background or upload your own for the Generator tab.',
+      generatorGuarantee1m: '1 Month',
+      generatorGuarantee3m: '3 Months',
+      generatorGuarantee6m: '6 Months',
+      generatorGuarantee12m: '12 Months',
+      generatorGuaranteeUpload: 'Uploaded',
+      uploadGuarantee: 'Upload Guarantee Image',
+      clearUploadedGuarantee: 'Clear Uploaded Guarantee',
+      guaranteeImageHint: 'Choose a guarantee preset or upload your own image. The selected badge stays draggable and resizable on the preview.',
       contactType: 'Contact Type',
       contactValue: 'Contact Text',
       contactValueHint: 'Example: +1 234 567 890',
@@ -426,6 +491,14 @@ const i18n = {
       uploadLogo: 'Upload Logo',
       clearLogo: 'Remove Logo',
       logoHint: 'After upload, drag the logo handle on preview to resize.',
+      uploadPointsText: 'Upload Points Text Design',
+      clearUploadedPointsText: 'Use Default Points Text',
+      pointsTextRotation: 'Rotation',
+      pointsTextHint: 'Upload your own points-text design. Drag on the preview to move it, drag the corner to resize it, and use the slider to rotate it.',
+      uploadReconditioned: 'Upload PC Reconditionne Design',
+      clearUploadedReconditioned: 'Use Default PC Reconditionne',
+      reconditionedRotation: 'Rotation',
+      reconditionedHint: 'Upload your own PC reconditionne design. Drag on the preview to move it, drag the corner to resize it, and use the slider to rotate it.',
       showIntelBadge: 'Processor Badge',
       showScreenBadge: 'Screen Badge',
       showBatteryBadge: 'Battery Badge',
@@ -462,6 +535,9 @@ const i18n = {
       diffPromoValueHint: 'Example: 50',
       diffPromoTail: 'Left Promo Line 2',
       diffPromoTailHint: 'Example: POINTS OF CONTROL',
+      diffPromoSection: 'Control Text',
+      diffPromoTextColor: 'Text Color',
+      diffPromoValueColor: 'Highlight Color',
       diffPromoBadge: 'Left Promo Badge',
       diffPromoBadgeHint: 'Example: REFURBISHED IN FRANCE',
       diffWarrantyNumber: 'Warranty Number',
@@ -534,6 +610,8 @@ const i18n = {
       image: 'Image Appareil',
       chargerImage: 'Image Chargeur',
       logo: 'Logo',
+      pointsText: 'Texte Points',
+      reconditioned: 'PC Reconditionne',
       os: 'Systeme D Exploitation',
       ram: 'RAM',
       keyboard: 'Retroeclairage Clavier',
@@ -563,6 +641,13 @@ const i18n = {
       storageSize: 'Capacite',
       storageCustom: 'Capacite Personnalisee',
       storageHint: 'Saisir une valeur (exemple: 750 GB)',
+      extraStorageToggle: 'Ajouter Un Badge Stockage Supplementaire',
+      extraStorageType: 'Type Badge Supplementaire',
+      extraStorageTypeHint: 'Exemple: HDD ou NVMe',
+      extraStorageSize: 'Capacite Badge Supplementaire',
+      extraStorageSizeHint: 'Exemple: 1 TB',
+      badgeColor: 'Couleur Badge',
+      extraBadgeColor: 'Couleur Badge Supplementaire',
       brand: 'Marque',
       processor: 'Processeur',
       processorBadgeText: 'Texte Badge Processeur',
@@ -620,6 +705,14 @@ const i18n = {
       uploadBackground: 'Telecharger Arriere-plan',
       clearUploadedBackground: 'Supprimer Arriere-plan Importe',
       backgroundHint: 'Choisissez un fond predefini ou importez votre propre fond pour le Generateur.',
+      generatorGuarantee1m: '1 Mois',
+      generatorGuarantee3m: '3 Mois',
+      generatorGuarantee6m: '6 Mois',
+      generatorGuarantee12m: '12 Mois',
+      generatorGuaranteeUpload: 'Importe',
+      uploadGuarantee: 'Telecharger Image Garantie',
+      clearUploadedGuarantee: 'Supprimer Garantie Importee',
+      guaranteeImageHint: 'Choisissez un preset de garantie ou importez votre propre image. Le badge selectionne reste deplacable et redimensionnable dans lapercu.',
       contactType: 'Type De Contact',
       contactValue: 'Texte Contact',
       contactValueHint: 'Exemple: +33 1 23 45 67 89',
@@ -640,6 +733,14 @@ const i18n = {
       uploadLogo: 'Telecharger Logo',
       clearLogo: 'Supprimer Logo',
       logoHint: 'Apres upload, faites glisser la poignee du logo pour redimensionner.',
+      uploadPointsText: 'Telecharger Design Texte Points',
+      clearUploadedPointsText: 'Utiliser Texte Points Par Defaut',
+      pointsTextRotation: 'Rotation',
+      pointsTextHint: 'Importez votre propre design texte-points. Glissez dans lapercu pour le deplacer, glissez le coin pour le redimensionner et utilisez le curseur pour le faire pivoter.',
+      uploadReconditioned: 'Telecharger Design PC Reconditionne',
+      clearUploadedReconditioned: 'Utiliser PC Reconditionne Par Defaut',
+      reconditionedRotation: 'Rotation',
+      reconditionedHint: 'Importez votre propre design PC reconditionne. Glissez dans lapercu pour le deplacer, glissez le coin pour le redimensionner et utilisez le curseur pour le faire pivoter.',
       showIntelBadge: 'Badge Processeur',
       showScreenBadge: 'Badge Ecran',
       showBatteryBadge: 'Badge Batterie',
@@ -676,6 +777,9 @@ const i18n = {
       diffPromoValueHint: 'Exemple: 50',
       diffPromoTail: 'Promo Gauche Ligne 2',
       diffPromoTailHint: 'Exemple: POINTS DE CONTROLE',
+      diffPromoSection: 'Texte Controle',
+      diffPromoTextColor: 'Couleur Texte',
+      diffPromoValueColor: 'Couleur Mise En Avant',
       diffPromoBadge: 'Badge Promo Gauche',
       diffPromoBadgeHint: 'Exemple: RECONDITIONNE EN FRANCE',
       diffWarrantyNumber: 'Nombre Garantie',
@@ -898,6 +1002,9 @@ let logoImageObj = null;
 let chargerImageObj = null;
 let defaultPcImageObj = null;
 let defaultLaptopImageObj = null;
+let generatorSideGuaranteeImageObj = null;
+let generatorPointsTextImageObj = null;
+let generatorReconditionedImageObj = null;
 let generatorBackgroundImageObj = null;
 let isGenerating = false;
 let statusAnimTimer = null;
@@ -918,6 +1025,12 @@ let isOsBadgeSelected = false;
 let guaranteeBadgeResizeHandleRect = null;
 let guaranteeBadgeBodyRect = null;
 let isGuaranteeBadgeSelected = false;
+let pointsTextResizeHandleRect = null;
+let pointsTextBodyRect = null;
+let isPointsTextSelected = false;
+let reconditionedResizeHandleRect = null;
+let reconditionedBodyRect = null;
+let isReconditionedSelected = false;
 let stackBadgeRects = [];
 let stackBadgeResizeHandleRects = [];
 let selectedStackBadgeKey = null;
@@ -931,6 +1044,10 @@ let isResizingOsBadge = false;
 let osBadgeResizeStart = null;
 let isResizingGuaranteeBadge = false;
 let guaranteeBadgeResizeStart = null;
+let isResizingPointsText = false;
+let pointsTextResizeStart = null;
+let isResizingReconditioned = false;
+let reconditionedResizeStart = null;
 let isResizingStackBadge = false;
 let stackBadgeResizeStart = null;
 let draggableRegions = [];
@@ -1064,6 +1181,12 @@ function snapshotForUndo() {
     guaranteePeriod: state.guaranteePeriod,
     chargerImageDataUrl: state.chargerImageDataUrl,
     logoImageDataUrl: state.logoImageDataUrl,
+    diffPointsTextUploadDataUrl: state.diffPointsTextUploadDataUrl,
+    diffPointsTextRotation: state.diffPointsTextRotation,
+    diffPointsTextSize: JSON.parse(JSON.stringify(state.diffPointsTextSize || DEFAULT_DIFF_POINTS_TEXT_SIZE)),
+    diffReconditionedUploadDataUrl: state.diffReconditionedUploadDataUrl,
+    diffReconditionedRotation: state.diffReconditionedRotation,
+    diffReconditionedSize: JSON.parse(JSON.stringify(state.diffReconditionedSize || DEFAULT_DIFF_RECONDITIONED_SIZE)),
     storageBadgeSize: JSON.parse(JSON.stringify(state.storageBadgeSize || { w: 340, h: 108 })),
     osBadgeSize: JSON.parse(JSON.stringify(state.osBadgeSize || DEFAULT_OS_BADGE_SIZE)),
     guaranteeBadgeSize: JSON.parse(JSON.stringify(state.guaranteeBadgeSize || DEFAULT_GUARANTEE_BADGE_SIZE)),
@@ -1108,6 +1231,12 @@ function restoreFromUndoSnapshot(snapshot) {
   state.chargerTitle = snapshot.chargerTitle ?? state.chargerTitle;
   state.guaranteeText = snapshot.guaranteeText ?? state.guaranteeText;
   state.guaranteePeriod = snapshot.guaranteePeriod ?? state.guaranteePeriod;
+  state.diffPointsTextUploadDataUrl = snapshot.diffPointsTextUploadDataUrl ?? state.diffPointsTextUploadDataUrl;
+  state.diffPointsTextRotation = snapshot.diffPointsTextRotation ?? state.diffPointsTextRotation;
+  state.diffPointsTextSize = JSON.parse(JSON.stringify(snapshot.diffPointsTextSize || state.diffPointsTextSize || DEFAULT_DIFF_POINTS_TEXT_SIZE));
+  state.diffReconditionedUploadDataUrl = snapshot.diffReconditionedUploadDataUrl ?? state.diffReconditionedUploadDataUrl;
+  state.diffReconditionedRotation = snapshot.diffReconditionedRotation ?? state.diffReconditionedRotation;
+  state.diffReconditionedSize = JSON.parse(JSON.stringify(snapshot.diffReconditionedSize || state.diffReconditionedSize || DEFAULT_DIFF_RECONDITIONED_SIZE));
   state.storageBadgeSize = JSON.parse(JSON.stringify(snapshot.storageBadgeSize || state.storageBadgeSize || { w: 340, h: 108 }));
   state.osBadgeSize = JSON.parse(JSON.stringify(snapshot.osBadgeSize || state.osBadgeSize || DEFAULT_OS_BADGE_SIZE));
   state.guaranteeBadgeSize = JSON.parse(JSON.stringify(snapshot.guaranteeBadgeSize || state.guaranteeBadgeSize || DEFAULT_GUARANTEE_BADGE_SIZE));
@@ -1170,6 +1299,8 @@ function restoreFromUndoSnapshot(snapshot) {
   } else {
     logoImageObj = null;
   }
+  loadGeneratorPointsTextImage();
+  loadGeneratorReconditionedImage();
 }
 
 function drawSelectAllOverlay() {
@@ -1946,6 +2077,38 @@ function buildStorageSection() {
   section.appendChild(h3);
 
   const labels = t().labels;
+  const storagePresets = ['128 GB', '256 GB', '512 GB', '1 TB'];
+
+  const localizeStorageValue = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+    return state.lang === 'fr'
+      ? raw.replace(/\bGB\b/gi, 'GO')
+      : raw.replace(/\bGO\b/gi, 'GB');
+  };
+
+  const appendStoragePresetButtons = (parent, onSelect) => {
+    const buttonsRow = document.createElement('div');
+    buttonsRow.className = 'options';
+    buttonsRow.style.marginTop = '8px';
+    buttonsRow.style.marginBottom = '10px';
+
+    storagePresets.forEach((preset) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'tile';
+      button.textContent = localizeStorageValue(preset);
+      button.style.padding = '8px 12px';
+      button.addEventListener('click', () => {
+        onSelect(localizeStorageValue(preset));
+      });
+      buttonsRow.appendChild(button);
+    });
+
+    parent.appendChild(buttonsRow);
+  };
 
   const typeCustomGroup = document.createElement('div');
   typeCustomGroup.className = 'input-group';
@@ -1977,6 +2140,77 @@ function buildStorageSection() {
     drawPoster();
   });
   typeCustomGroup.appendChild(customInput);
+  appendStoragePresetButtons(typeCustomGroup, (value) => {
+    state.storageSize = value;
+    renderControls();
+    drawPoster();
+  });
+
+  if (state.generator === 'diff') {
+    appendBadgeColorPicker(typeCustomGroup, labels.badgeColor, 'diffStorageBadgeColor', '#f2c246');
+  }
+
+  if (state.generator === 'diff') {
+    const extraToggleRow = document.createElement('label');
+    extraToggleRow.style.display = 'flex';
+    extraToggleRow.style.alignItems = 'center';
+    extraToggleRow.style.gap = '10px';
+    extraToggleRow.style.marginTop = '10px';
+    extraToggleRow.style.fontWeight = '600';
+
+    const extraToggle = document.createElement('input');
+    extraToggle.type = 'checkbox';
+    extraToggle.checked = !!state.diffExtraStorageEnabled;
+    extraToggle.addEventListener('change', (e) => {
+      state.diffExtraStorageEnabled = !!e.target.checked;
+      renderControls();
+      drawPoster();
+    });
+
+    const extraToggleText = document.createElement('span');
+    extraToggleText.textContent = labels.extraStorageToggle;
+
+    extraToggleRow.appendChild(extraToggle);
+    extraToggleRow.appendChild(extraToggleText);
+    typeCustomGroup.appendChild(extraToggleRow);
+
+    if (state.diffExtraStorageEnabled) {
+      const extraTypeLabel = document.createElement('label');
+      extraTypeLabel.textContent = labels.extraStorageType;
+      typeCustomGroup.appendChild(extraTypeLabel);
+
+      const extraTypeInput = document.createElement('input');
+      extraTypeInput.type = 'text';
+      extraTypeInput.value = state.diffExtraStorageType || '';
+      extraTypeInput.placeholder = labels.extraStorageTypeHint;
+      extraTypeInput.addEventListener('input', (e) => {
+        state.diffExtraStorageType = e.target.value;
+        drawPoster();
+      });
+      typeCustomGroup.appendChild(extraTypeInput);
+
+      const extraSizeLabel = document.createElement('label');
+      extraSizeLabel.textContent = labels.extraStorageSize;
+      typeCustomGroup.appendChild(extraSizeLabel);
+
+      const extraSizeInput = document.createElement('input');
+      extraSizeInput.type = 'text';
+      extraSizeInput.value = state.diffExtraStorageSize || '';
+      extraSizeInput.placeholder = labels.extraStorageSizeHint;
+      extraSizeInput.addEventListener('input', (e) => {
+        state.diffExtraStorageSize = e.target.value;
+        drawPoster();
+      });
+      typeCustomGroup.appendChild(extraSizeInput);
+      appendStoragePresetButtons(typeCustomGroup, (value) => {
+        state.diffExtraStorageSize = value;
+        renderControls();
+        drawPoster();
+      });
+      appendBadgeColorPicker(typeCustomGroup, labels.extraBadgeColor, 'diffExtraStorageBadgeColor', '#8a98ab');
+    }
+  }
+
   section.appendChild(typeCustomGroup);
 
   return section;
@@ -2020,6 +2254,10 @@ function buildRamSection() {
     drawPoster();
   });
   typeGroup.appendChild(typeInput);
+
+  if (state.generator === 'diff') {
+    appendBadgeColorPicker(typeGroup, t().labels.badgeColor, 'diffRamBadgeColor', '#65c3c5');
+  }
   section.appendChild(typeGroup);
 
   return section;
@@ -2052,6 +2290,234 @@ function buildInputSection(title, label, key, placeholder = '') {
   wrap.appendChild(input);
   section.appendChild(wrap);
 
+  return section;
+}
+
+function appendBadgeColorPicker(parent, label, stateKey, fallbackColor) {
+  const colorLabel = document.createElement('label');
+  colorLabel.textContent = label;
+  parent.appendChild(colorLabel);
+
+  const colorInput = document.createElement('input');
+  colorInput.type = 'color';
+  colorInput.value = state[stateKey] || fallbackColor;
+  colorInput.style.marginBottom = '10px';
+  colorInput.addEventListener('input', (e) => {
+    state[stateKey] = e.target.value;
+    drawPoster();
+  });
+  parent.appendChild(colorInput);
+}
+
+function buildOsSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.os;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const textLabel = document.createElement('label');
+  textLabel.textContent = t().labels.osCustom;
+  wrap.appendChild(textLabel);
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = state.os;
+  input.placeholder = t().labels.osHint;
+  input.addEventListener('input', (e) => {
+    state.os = e.target.value;
+    drawPoster();
+  });
+  wrap.appendChild(input);
+
+  if (state.generator === 'diff') {
+    appendBadgeColorPicker(wrap, t().labels.badgeColor, 'diffOsBadgeColor', '#1d9be4');
+  }
+
+  section.appendChild(wrap);
+  return section;
+}
+
+function buildDiffPromoSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().labels.diffPromoSection;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const leadLabel = document.createElement('label');
+  leadLabel.textContent = t().labels.diffPromoLead;
+  wrap.appendChild(leadLabel);
+
+  const leadInput = document.createElement('input');
+  leadInput.type = 'text';
+  leadInput.value = state.diffPromoLead || '';
+  leadInput.placeholder = t().labels.diffPromoLeadHint;
+  leadInput.addEventListener('input', (e) => {
+    state.diffPromoLead = e.target.value;
+    drawPoster();
+  });
+  wrap.appendChild(leadInput);
+
+  const valueLabel = document.createElement('label');
+  valueLabel.textContent = t().labels.diffPromoValue;
+  wrap.appendChild(valueLabel);
+
+  const valueInput = document.createElement('input');
+  valueInput.type = 'text';
+  valueInput.value = state.diffPromoValue || '';
+  valueInput.placeholder = t().labels.diffPromoValueHint;
+  valueInput.addEventListener('input', (e) => {
+    state.diffPromoValue = e.target.value;
+    drawPoster();
+  });
+  wrap.appendChild(valueInput);
+
+  const tailLabel = document.createElement('label');
+  tailLabel.textContent = t().labels.diffPromoTail;
+  wrap.appendChild(tailLabel);
+
+  const tailInput = document.createElement('input');
+  tailInput.type = 'text';
+  tailInput.value = state.diffPromoTail || '';
+  tailInput.placeholder = t().labels.diffPromoTailHint;
+  tailInput.addEventListener('input', (e) => {
+    state.diffPromoTail = e.target.value;
+    drawPoster();
+  });
+  wrap.appendChild(tailInput);
+
+  const createFormatButton = (label, active, onClick) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `tile ${active ? 'active' : ''}`;
+    btn.textContent = label;
+    btn.style.padding = '8px 12px';
+    btn.style.minWidth = '84px';
+    btn.addEventListener('click', onClick);
+    return btn;
+  };
+
+  const controlsRow = document.createElement('div');
+  controlsRow.className = 'options';
+  controlsRow.style.marginBottom = '8px';
+  controlsRow.appendChild(
+    createFormatButton(t().labels.textBold, !!state.diffPromoBold, () => {
+      state.diffPromoBold = !state.diffPromoBold;
+      renderControls();
+      drawPoster();
+    })
+  );
+  controlsRow.appendChild(
+    createFormatButton(t().labels.textItalic, !!state.diffPromoItalic, () => {
+      state.diffPromoItalic = !state.diffPromoItalic;
+      renderControls();
+      drawPoster();
+    })
+  );
+  controlsRow.appendChild(
+    createFormatButton(t().labels.textUnderline, !!state.diffPromoUnderline, () => {
+      state.diffPromoUnderline = !state.diffPromoUnderline;
+      renderControls();
+      drawPoster();
+    })
+  );
+  wrap.appendChild(controlsRow);
+
+  const sizeLabel = document.createElement('label');
+  sizeLabel.textContent = t().labels.textSize;
+  wrap.appendChild(sizeLabel);
+
+  const sizeRow = document.createElement('div');
+  sizeRow.style.display = 'grid';
+  sizeRow.style.gridTemplateColumns = '44px 1fr 44px auto';
+  sizeRow.style.gap = '8px';
+  sizeRow.style.alignItems = 'center';
+  sizeRow.style.marginBottom = '12px';
+
+  const minSize = 16;
+  const maxSize = 56;
+  const currentSize = Math.max(minSize, Number(state.diffPromoFontSize) || 28);
+
+  const sizeInput = document.createElement('input');
+  sizeInput.type = 'range';
+  sizeInput.min = String(minSize);
+  sizeInput.max = String(maxSize);
+  sizeInput.step = '1';
+  sizeInput.value = String(currentSize);
+
+  const sizeValue = document.createElement('div');
+  sizeValue.textContent = `${currentSize}px`;
+
+  const updateSize = (nextValue) => {
+    const next = Math.max(minSize, Math.min(maxSize, Number(nextValue) || 28));
+    state.diffPromoFontSize = next;
+    sizeInput.value = String(next);
+    sizeValue.textContent = `${next}px`;
+    drawPoster();
+  };
+
+  const minusBtn = document.createElement('button');
+  minusBtn.type = 'button';
+  minusBtn.className = 'tile';
+  minusBtn.textContent = '-';
+  minusBtn.style.padding = '8px 0';
+  minusBtn.addEventListener('click', () => updateSize((Number(state.diffPromoFontSize) || currentSize) - 1));
+
+  const plusBtn = document.createElement('button');
+  plusBtn.type = 'button';
+  plusBtn.className = 'tile';
+  plusBtn.textContent = '+';
+  plusBtn.style.padding = '8px 0';
+  plusBtn.addEventListener('click', () => updateSize((Number(state.diffPromoFontSize) || currentSize) + 1));
+
+  sizeInput.addEventListener('input', (e) => {
+    updateSize(e.target.value);
+  });
+
+  sizeRow.appendChild(minusBtn);
+  sizeRow.appendChild(sizeInput);
+  sizeRow.appendChild(plusBtn);
+  sizeRow.appendChild(sizeValue);
+  wrap.appendChild(sizeRow);
+
+  const textColorLabel = document.createElement('label');
+  textColorLabel.textContent = t().labels.diffPromoTextColor;
+  wrap.appendChild(textColorLabel);
+
+  const textColorInput = document.createElement('input');
+  textColorInput.type = 'color';
+  textColorInput.value = state.diffPromoTextColor || '#171717';
+  textColorInput.style.marginBottom = '10px';
+  textColorInput.addEventListener('input', (e) => {
+    state.diffPromoTextColor = e.target.value;
+    drawPoster();
+  });
+  wrap.appendChild(textColorInput);
+
+  const valueColorLabel = document.createElement('label');
+  valueColorLabel.textContent = t().labels.diffPromoValueColor;
+  wrap.appendChild(valueColorLabel);
+
+  const valueColorInput = document.createElement('input');
+  valueColorInput.type = 'color';
+  valueColorInput.value = state.diffPromoValueColor || '#4dbb35';
+  valueColorInput.style.marginBottom = '10px';
+  valueColorInput.addEventListener('input', (e) => {
+    state.diffPromoValueColor = e.target.value;
+    drawPoster();
+  });
+  wrap.appendChild(valueColorInput);
+
+  section.appendChild(wrap);
   return section;
 }
 
@@ -2565,6 +3031,138 @@ function buildDiffBackgroundSection() {
   return section;
 }
 
+function resetDiffGuaranteeToFullSize() {
+  state.guaranteeBadgeSizeAdjusted = false;
+}
+
+function loadSelectedDiffGuaranteeImage() {
+  const source = state.diffGuaranteeSelection === 'upload' && state.diffGuaranteeUploadDataUrl
+    ? state.diffGuaranteeUploadDataUrl
+    : (GENERATOR_GUARANTEE_PRESETS[state.diffGuaranteeSelection] || GENERATOR_GUARANTEE_PRESETS['1m']);
+  loadGeneratorSideGuaranteeImage(source);
+}
+
+function buildDiffGuaranteeSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.guarantee;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const presetWrap = document.createElement('div');
+  presetWrap.className = 'options';
+
+  const presetItems = [
+    ['1m', t().labels.generatorGuarantee1m],
+    ['3m', t().labels.generatorGuarantee3m],
+    ['6m', t().labels.generatorGuarantee6m],
+    ['12m', t().labels.generatorGuarantee12m],
+  ];
+
+  presetItems.forEach(([value, label]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `tile ${state.diffGuaranteeSelection === value ? 'active' : ''}`;
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      if (state.diffGuaranteeSelection === value) {
+        return;
+      }
+      state.diffGuaranteeSelection = value;
+      state.sectionEnabled.guarantee = true;
+      resetDiffGuaranteeToFullSize();
+      loadSelectedDiffGuaranteeImage();
+      renderControls();
+    });
+    presetWrap.appendChild(btn);
+  });
+
+  const uploadedBtn = document.createElement('button');
+  uploadedBtn.type = 'button';
+  uploadedBtn.className = `tile ${state.diffGuaranteeSelection === 'upload' ? 'active' : ''}`;
+  uploadedBtn.textContent = t().labels.generatorGuaranteeUpload;
+  uploadedBtn.disabled = !state.diffGuaranteeUploadDataUrl;
+  uploadedBtn.addEventListener('click', () => {
+    if (!state.diffGuaranteeUploadDataUrl || state.diffGuaranteeSelection === 'upload') {
+      return;
+    }
+    state.diffGuaranteeSelection = 'upload';
+    state.sectionEnabled.guarantee = true;
+    resetDiffGuaranteeToFullSize();
+    loadSelectedDiffGuaranteeImage();
+    renderControls();
+  });
+  presetWrap.appendChild(uploadedBtn);
+
+  wrap.appendChild(presetWrap);
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.textContent = t().labels.uploadGuarantee;
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.textContent = t().labels.clearUploadedGuarantee;
+  clearBtn.disabled = !state.diffGuaranteeUploadDataUrl;
+
+  const hint = document.createElement('div');
+  hint.textContent = t().labels.guaranteeImageHint;
+  hint.style.color = '#5b6678';
+  hint.style.fontSize = '13px';
+
+  const hiddenInput = document.createElement('input');
+  hiddenInput.type = 'file';
+  hiddenInput.accept = 'image/*';
+  hiddenInput.style.display = 'none';
+
+  uploadBtn.addEventListener('click', () => hiddenInput.click());
+  hiddenInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.diffGuaranteeUploadDataUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!state.diffGuaranteeUploadDataUrl) {
+        return;
+      }
+      state.diffGuaranteeSelection = 'upload';
+      state.sectionEnabled.guarantee = true;
+      resetDiffGuaranteeToFullSize();
+      hiddenInput.value = '';
+      loadSelectedDiffGuaranteeImage();
+      renderControls();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (!state.diffGuaranteeUploadDataUrl) {
+      return;
+    }
+    state.diffGuaranteeUploadDataUrl = '';
+    if (state.diffGuaranteeSelection === 'upload') {
+      state.diffGuaranteeSelection = '1m';
+    }
+    state.sectionEnabled.guarantee = true;
+    resetDiffGuaranteeToFullSize();
+    loadSelectedDiffGuaranteeImage();
+    renderControls();
+  });
+
+  wrap.appendChild(uploadBtn);
+  wrap.appendChild(clearBtn);
+  wrap.appendChild(hint);
+  wrap.appendChild(hiddenInput);
+  section.appendChild(wrap);
+  return section;
+}
+
 function buildContactSection() {
   const section = document.createElement('section');
   section.className = 'section';
@@ -2768,6 +3366,10 @@ function buildProcessorSection() {
     drawPoster();
   });
   wrap.appendChild(genInput);
+
+  if (state.generator === 'diff') {
+    appendBadgeColorPicker(wrap, t().labels.badgeColor, 'diffProcessorBadgeColor', '#1b9fea');
+  }
 
   section.appendChild(wrap);
   return section;
@@ -3073,6 +3675,214 @@ function buildLogoSection() {
 
   wrap.appendChild(uploadBtn);
   wrap.appendChild(clearBtn);
+  wrap.appendChild(hint);
+  wrap.appendChild(hiddenInput);
+  section.appendChild(wrap);
+  return section;
+}
+
+function resetDiffPointsTextSize() {
+  state.diffPointsTextSize = { ...DEFAULT_DIFF_POINTS_TEXT_SIZE };
+}
+
+function resetDiffReconditionedSize() {
+  state.diffReconditionedSize = { ...DEFAULT_DIFF_RECONDITIONED_SIZE };
+}
+
+function buildPointsTextSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.pointsText;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.textContent = t().labels.uploadPointsText;
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.textContent = t().labels.clearUploadedPointsText;
+  clearBtn.disabled = !state.diffPointsTextUploadDataUrl;
+
+  const rotationLabel = document.createElement('label');
+  rotationLabel.textContent = t().labels.pointsTextRotation;
+
+  const rotationWrap = document.createElement('div');
+  rotationWrap.style.display = 'flex';
+  rotationWrap.style.alignItems = 'center';
+  rotationWrap.style.gap = '10px';
+
+  const rotationInput = document.createElement('input');
+  rotationInput.type = 'range';
+  rotationInput.min = '-180';
+  rotationInput.max = '180';
+  rotationInput.step = '1';
+  rotationInput.value = String(Number(state.diffPointsTextRotation) || 0);
+  rotationInput.style.flex = '1';
+
+  const rotationValue = document.createElement('div');
+  rotationValue.textContent = `${Number(state.diffPointsTextRotation) || 0}deg`;
+  rotationValue.style.minWidth = '58px';
+
+  rotationInput.addEventListener('input', (e) => {
+    state.diffPointsTextRotation = Number(e.target.value) || 0;
+    rotationValue.textContent = `${state.diffPointsTextRotation}deg`;
+    drawPoster();
+  });
+
+  const hint = document.createElement('div');
+  hint.textContent = t().labels.pointsTextHint;
+  hint.style.color = '#5b6678';
+  hint.style.fontSize = '13px';
+
+  const hiddenInput = document.createElement('input');
+  hiddenInput.type = 'file';
+  hiddenInput.accept = 'image/*';
+  hiddenInput.style.display = 'none';
+
+  uploadBtn.addEventListener('click', () => hiddenInput.click());
+  hiddenInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.diffPointsTextUploadDataUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!state.diffPointsTextUploadDataUrl) {
+        return;
+      }
+      state.sectionEnabled.pointsText = true;
+      resetDiffPointsTextSize();
+      hiddenInput.value = '';
+      loadGeneratorPointsTextImage();
+      renderControls();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (!state.diffPointsTextUploadDataUrl) {
+      return;
+    }
+    state.diffPointsTextUploadDataUrl = '';
+    state.sectionEnabled.pointsText = true;
+    resetDiffPointsTextSize();
+    loadGeneratorPointsTextImage();
+    renderControls();
+  });
+
+  rotationWrap.appendChild(rotationInput);
+  rotationWrap.appendChild(rotationValue);
+  wrap.appendChild(uploadBtn);
+  wrap.appendChild(clearBtn);
+  wrap.appendChild(rotationLabel);
+  wrap.appendChild(rotationWrap);
+  wrap.appendChild(hint);
+  wrap.appendChild(hiddenInput);
+  section.appendChild(wrap);
+  return section;
+}
+
+function buildReconditionedSection() {
+  const section = document.createElement('section');
+  section.className = 'section';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = t().sections.reconditioned;
+  section.appendChild(h3);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'input-group';
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.textContent = t().labels.uploadReconditioned;
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.textContent = t().labels.clearUploadedReconditioned;
+  clearBtn.disabled = !state.diffReconditionedUploadDataUrl;
+
+  const rotationLabel = document.createElement('label');
+  rotationLabel.textContent = t().labels.reconditionedRotation;
+
+  const rotationWrap = document.createElement('div');
+  rotationWrap.style.display = 'flex';
+  rotationWrap.style.alignItems = 'center';
+  rotationWrap.style.gap = '10px';
+
+  const rotationInput = document.createElement('input');
+  rotationInput.type = 'range';
+  rotationInput.min = '-180';
+  rotationInput.max = '180';
+  rotationInput.step = '1';
+  rotationInput.value = String(Number(state.diffReconditionedRotation) || 0);
+  rotationInput.style.flex = '1';
+
+  const rotationValue = document.createElement('div');
+  rotationValue.textContent = `${Number(state.diffReconditionedRotation) || 0}deg`;
+  rotationValue.style.minWidth = '58px';
+
+  rotationInput.addEventListener('input', (e) => {
+    state.diffReconditionedRotation = Number(e.target.value) || 0;
+    rotationValue.textContent = `${state.diffReconditionedRotation}deg`;
+    drawPoster();
+  });
+
+  const hint = document.createElement('div');
+  hint.textContent = t().labels.reconditionedHint;
+  hint.style.color = '#5b6678';
+  hint.style.fontSize = '13px';
+
+  const hiddenInput = document.createElement('input');
+  hiddenInput.type = 'file';
+  hiddenInput.accept = 'image/*';
+  hiddenInput.style.display = 'none';
+
+  uploadBtn.addEventListener('click', () => hiddenInput.click());
+  hiddenInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.diffReconditionedUploadDataUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!state.diffReconditionedUploadDataUrl) {
+        return;
+      }
+      state.sectionEnabled.reconditioned = true;
+      resetDiffReconditionedSize();
+      hiddenInput.value = '';
+      loadGeneratorReconditionedImage();
+      renderControls();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (!state.diffReconditionedUploadDataUrl) {
+      return;
+    }
+    state.diffReconditionedUploadDataUrl = '';
+    state.sectionEnabled.reconditioned = true;
+    resetDiffReconditionedSize();
+    loadGeneratorReconditionedImage();
+    renderControls();
+  });
+
+  rotationWrap.appendChild(rotationInput);
+  rotationWrap.appendChild(rotationValue);
+  wrap.appendChild(uploadBtn);
+  wrap.appendChild(clearBtn);
+  wrap.appendChild(rotationLabel);
+  wrap.appendChild(rotationWrap);
   wrap.appendChild(hint);
   wrap.appendChild(hiddenInput);
   section.appendChild(wrap);
@@ -3451,7 +4261,10 @@ function renderControls() {
     controlsPanel.appendChild(buildDiffBackgroundSection());
     controlsPanel.appendChild(applySectionToggle(buildDiffFormatSection(), 'diffFormat'));
     controlsPanel.appendChild(applySectionToggle(buildDeviceImageSection(), 'image'));
+    controlsPanel.appendChild(applySectionToggle(buildDiffGuaranteeSection(), 'guarantee'));
     controlsPanel.appendChild(applySectionToggle(buildLogoSection(), 'logo'));
+    controlsPanel.appendChild(applySectionToggle(buildPointsTextSection(), 'pointsText'));
+    controlsPanel.appendChild(applySectionToggle(buildReconditionedSection(), 'reconditioned'));
     controlsPanel.appendChild(applySectionToggle(buildPriceSection(), 'price'));
     controlsPanel.appendChild(
       applySectionToggle(buildProcessorSection(), 'processor')
@@ -3459,10 +4272,7 @@ function renderControls() {
     controlsPanel.appendChild(applySectionToggle(buildStorageSection(), 'storage'));
     controlsPanel.appendChild(applySectionToggle(buildRamSection(), 'ram'));
     controlsPanel.appendChild(
-      applySectionToggle(
-        buildInputSection(labels.sections.os, labels.labels.osCustom, 'os', labels.labels.osHint),
-        'os'
-      )
+      applySectionToggle(buildOsSection(), 'os')
     );
     controlsPanel.appendChild(buildColorsSection());
     return;
@@ -3474,10 +4284,7 @@ function renderControls() {
   controlsPanel.appendChild(applySectionToggle(buildTitleBadgeSection(), 'titleBadge'));
   controlsPanel.appendChild(applySectionToggle(buildTileSection(labels.sections.type, 'type', options.type), 'type'));
   controlsPanel.appendChild(
-    applySectionToggle(
-      buildInputSection(labels.sections.os, labels.labels.osCustom, 'os', labels.labels.osHint),
-      'os'
-    )
+    applySectionToggle(buildOsSection(), 'os')
   );
   controlsPanel.appendChild(
     applySectionToggle(buildGuaranteeSection(), 'guarantee')
@@ -3700,6 +4507,45 @@ function drawImageContain(img, x, y, w, h) {
   ctx.drawImage(img, dx, dy, drawW, drawH);
 }
 
+function getRotatedBounds(cx, cy, w, h, rotationDeg = 0) {
+  const radians = (Number(rotationDeg) || 0) * (Math.PI / 180);
+  const cos = Math.abs(Math.cos(radians));
+  const sin = Math.abs(Math.sin(radians));
+  const boundsW = (w * cos) + (h * sin);
+  const boundsH = (w * sin) + (h * cos);
+  return {
+    x: cx - (boundsW / 2),
+    y: cy - (boundsH / 2),
+    w: boundsW,
+    h: boundsH,
+  };
+}
+
+function drawRotatedImageContain(img, x, y, w, h, rotationDeg = 0) {
+  const srcRatio = img.width / Math.max(1, img.height);
+  const boxRatio = w / Math.max(1, h);
+  let drawW = w;
+  let drawH = h;
+
+  if (srcRatio > boxRatio) {
+    drawH = w / srcRatio;
+  } else {
+    drawW = h * srcRatio;
+  }
+
+  const cx = x + (w / 2);
+  const cy = y + (h / 2);
+  const radians = (Number(rotationDeg) || 0) * (Math.PI / 180);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(radians);
+  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.restore();
+
+  return getRotatedBounds(cx, cy, drawW, drawH, rotationDeg);
+}
+
 function drawBurstShape(cx, cy, outerRadius, innerRadius, points, fillStyle) {
   ctx.save();
   ctx.beginPath();
@@ -3819,15 +4665,46 @@ function loadGeneratorBackgroundImage() {
   generatorBackgroundImageObj.src = source;
 }
 
+function loadGeneratorPointsTextImage() {
+  const source = state.diffPointsTextUploadDataUrl || GENERATOR_POINTS_TEXT_SRC;
+  generatorPointsTextImageObj = new Image();
+  generatorPointsTextImageObj.onload = () => drawPoster();
+  generatorPointsTextImageObj.onerror = () => {
+    generatorPointsTextImageObj = null;
+    drawPoster();
+  };
+  generatorPointsTextImageObj.src = source;
+}
+
+function loadGeneratorReconditionedImage() {
+  const source = state.diffReconditionedUploadDataUrl || GENERATOR_RECONDITIONED_SRC;
+  generatorReconditionedImageObj = new Image();
+  generatorReconditionedImageObj.onload = () => drawPoster();
+  generatorReconditionedImageObj.onerror = () => {
+    generatorReconditionedImageObj = null;
+    drawPoster();
+  };
+  generatorReconditionedImageObj.src = source;
+}
+
+function loadGeneratorSideGuaranteeImage(source) {
+  generatorSideGuaranteeImageObj = new Image();
+  generatorSideGuaranteeImageObj.onload = () => drawPoster();
+  generatorSideGuaranteeImageObj.onerror = () => {
+    generatorSideGuaranteeImageObj = null;
+  };
+  generatorSideGuaranteeImageObj.src = source;
+}
+
 function getDeviceImageBoxRect() {
   const cardX = 28;
   const cardY = 30;
   const cardW = canvas.width - 56;
-  const deviceOffset = getLayoutOffset('device');
+  const deviceOffset = getLayoutOffset(state.generator === 'diff' ? 'diffDevice' : 'device');
   if (state.generator === 'diff') {
     return state.type === 'Laptop'
-      ? { x: cardX + 270 + deviceOffset.x, y: cardY + 260 + deviceOffset.y, w: 420, h: 300 }
-      : { x: cardX + 255 + deviceOffset.x, y: cardY + 250 + deviceOffset.y, w: 460, h: 340 };
+      ? { x: cardX + 92 + deviceOffset.x, y: cardY + 185 + deviceOffset.y, w: 520, h: 380 }
+      : { x: cardX + 86 + deviceOffset.x, y: cardY + 195 + deviceOffset.y, w: 540, h: 398 };
   }
   return state.type === 'Laptop'
     ? { x: cardX + 148 + deviceOffset.x, y: cardY + 220 + deviceOffset.y, w: 510, h: 360 }
@@ -3898,7 +4775,7 @@ function drawDefaultDeviceImage(imageObj, crop, imageBox, id, isSelected) {
     handle,
     z: 0,
   });
-  registerDraggableRegion('device', imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+  registerDraggableRegion(state.generator === 'diff' ? 'diffDevice' : 'device', imageBox.x, imageBox.y, imageBox.w, imageBox.h);
   registerRemovableElement(imageBox.x, imageBox.y, imageBox.w, imageBox.h, () => {
     state.sectionEnabled.type = false;
   });
@@ -4084,8 +4961,8 @@ function getPriceTagRect(cardX, cardY, cardW) {
   if (state.sectionEnabled.price === false || !priceParts.value) {
     return null;
   }
-  let baseX = cardX + cardW - 262;
-  let baseY = state.generator === 'diff' ? cardY + 42 : cardY + 34;
+  let baseX = state.generator === 'diff' ? cardX + 24 : cardX + cardW - 262;
+  let baseY = state.generator === 'diff' ? cardY + 58 : cardY + 34;
 
   if (state.generator !== 'diff' && state.sectionEnabled.badges !== false && state.sectionEnabled.logo !== false && state.showLogoBadge) {
     const logoOffset = getLayoutOffset('logo');
@@ -4613,14 +5490,14 @@ function getSpecRowLine(row) {
   return localizeSpecRowText([left, right].filter(Boolean).join(' ').trim());
 }
 
-function buildWrappedBadgeLines(text, maxWidth, fontSize, weight = 'bold', maxLines = 2) {
+function buildWrappedBadgeLines(text, maxWidth, fontSize, weight = 'bold', maxLines = 2, family = 'Segoe UI', fontStyle = '') {
   const normalized = String(text || '').trim().replace(/\s+/g, ' ');
   if (!normalized) {
     return [];
   }
   const words = normalized.split(' ');
   ctx.save();
-  ctx.font = `${weight} ${fontSize}px Segoe UI`;
+  ctx.font = `${fontStyle}${weight} ${fontSize}px ${family}`;
   const lines = [];
   let current = words[0] || '';
   for (let i = 1; i < words.length; i += 1) {
@@ -4639,16 +5516,16 @@ function buildWrappedBadgeLines(text, maxWidth, fontSize, weight = 'bold', maxLi
   return lines;
 }
 
-function drawCenteredBadgeLines(text, x, y, w, h, color, maxSize, minSize, weight = 'bold', maxLines = 2) {
+function drawCenteredBadgeLines(text, x, y, w, h, color, maxSize, minSize, weight = 'bold', maxLines = 2, family = 'Segoe UI', fontStyle = '', underline = false) {
   let lines = [];
   let fontSize = minSize;
 
   for (let size = maxSize; size >= minSize; size -= 1) {
-    const candidateLines = buildWrappedBadgeLines(text, w, size, weight, maxLines);
+    const candidateLines = buildWrappedBadgeLines(text, w, size, weight, maxLines, family, fontStyle);
     const lineGap = candidateLines.length > 1 ? Math.max(2, Math.round(size * 0.16)) : 0;
     const blockHeight = (candidateLines.length * size) + ((candidateLines.length - 1) * lineGap);
     ctx.save();
-    ctx.font = `${weight} ${size}px Segoe UI`;
+    ctx.font = `${fontStyle}${weight} ${size}px ${family}`;
     const widestLine = candidateLines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
     ctx.restore();
     if (candidateLines.length <= maxLines && blockHeight <= h && widestLine <= w) {
@@ -4659,7 +5536,7 @@ function drawCenteredBadgeLines(text, x, y, w, h, color, maxSize, minSize, weigh
   }
 
   if (!lines.length) {
-    lines = buildWrappedBadgeLines(text, w, minSize, weight, maxLines).slice(0, maxLines);
+    lines = buildWrappedBadgeLines(text, w, minSize, weight, maxLines, family, fontStyle).slice(0, maxLines);
     fontSize = minSize;
   }
 
@@ -4670,10 +5547,22 @@ function drawCenteredBadgeLines(text, x, y, w, h, color, maxSize, minSize, weigh
   ctx.save();
   ctx.textBaseline = 'top';
   ctx.fillStyle = color;
-  ctx.font = `${weight} ${fontSize}px Segoe UI`;
+  ctx.font = `${fontStyle}${weight} ${fontSize}px ${family}`;
   lines.forEach((line) => {
     const lineWidth = ctx.measureText(line).width;
-    ctx.fillText(line, x + ((w - lineWidth) / 2), lineY);
+    const lineX = x + ((w - lineWidth) / 2);
+    ctx.fillText(line, lineX, lineY);
+    if (underline) {
+      const underlineY = lineY + fontSize + Math.max(1, Math.round(fontSize * 0.06));
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(1.5, Math.round(fontSize * 0.06));
+      ctx.beginPath();
+      ctx.moveTo(lineX, underlineY);
+      ctx.lineTo(lineX + lineWidth, underlineY);
+      ctx.stroke();
+      ctx.restore();
+    }
     lineY += fontSize + lineGap;
   });
   ctx.restore();
@@ -5141,6 +6030,22 @@ function drawDiffFormatBackdrop(cardX, cardY, cardW, cardH) {
   ctx.restore();
 }
 
+function drawCenteredSingleLineText(text, x, y, w, h, color, maxSize, minSize, weight = 'bold', family = 'Segoe UI') {
+  const value = String(text || '').trim();
+  if (!value) {
+    return;
+  }
+
+  const fontSize = fitText(value, w, weight, maxSize, minSize, family);
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `${weight} ${fontSize}px ${family}`;
+  ctx.fillText(value, x + (w / 2), y + (h / 2));
+  ctx.restore();
+}
+
 function drawDiffSquareBadge(x, y, w, h, colorA, colorB, topText, mainText, subText = '') {
   const grad = ctx.createLinearGradient(x, y, x + w, y + h);
   grad.addColorStop(0, colorA);
@@ -5162,6 +6067,164 @@ function drawDiffSquareBadge(x, y, w, h, colorA, colorB, topText, mainText, subT
   drawCenteredBadgeLines(mainText, x + 12, y + 46, w - 24, h - 74, '#ffffff', 36, 18, '800', 2);
   if (subText) {
     drawCenteredBadgeLines(subText, x + 12, y + h - 42, w - 24, 26, '#edf7ff', 22, 12, '700', 1);
+  }
+}
+
+function drawDiffValueBadge(x, y, w, h, colorA, colorB, topText, mainText, subText = '') {
+  const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+  grad.addColorStop(0, colorA);
+  grad.addColorStop(1, colorB);
+  drawRoundedRect(x, y, w, h, 18, grad);
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.58, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w, y + h * 0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  if (topText) {
+    drawCenteredBadgeLines(topText.toUpperCase(), x + 10, y + 16, w - 20, 24, '#f6fbff', 18, 10, '700', 1);
+  }
+
+  const contentX = x + 12;
+  const contentW = w - 24;
+  const contentY = y + 42;
+  const contentH = h - 58;
+
+  if (subText) {
+    const primary = String(mainText || '').trim();
+    const secondary = String(subText || '').trim();
+    const mainSize = fitText(primary, contentW, '800', 30, 18, 'Segoe UI');
+    const subSize = fitText(secondary, contentW, '700', 18, 11, 'Segoe UI');
+    const gap = Math.max(2, Math.round(mainSize * 0.12));
+    const blockHeight = mainSize + subSize + gap;
+    const startY = contentY + Math.max(0, (contentH - blockHeight) / 2) - 2;
+
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 ${mainSize}px Segoe UI`;
+    ctx.fillText(primary, x + (w / 2), startY + (mainSize / 2));
+
+    ctx.fillStyle = '#edf7ff';
+    ctx.font = `700 ${subSize}px Segoe UI`;
+    ctx.fillText(secondary, x + (w / 2), startY + mainSize + gap + (subSize / 2));
+    ctx.restore();
+    return;
+  }
+
+  drawCenteredSingleLineText(mainText, contentX, contentY + 2, contentW, contentH - 6, '#ffffff', 30, 18, '800');
+}
+
+function splitDiffStorageBadgeText(value) {
+  const raw = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!raw) {
+    return { main: '', detail: '' };
+  }
+
+  const markerMatch = raw.match(/^(.*?)(\b(?:health|etat|sante|condition)\b.*)$/i);
+  if (markerMatch) {
+    return {
+      main: markerMatch[1].trim(),
+      detail: markerMatch[2].trim(),
+    };
+  }
+
+  const lineParts = String(value || '')
+    .split(/\r?\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (lineParts.length > 1) {
+    return {
+      main: lineParts[0],
+      detail: lineParts.slice(1).join(' '),
+    };
+  }
+
+  return { main: raw, detail: '' };
+}
+
+function splitDiffOsBadgeText(value) {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return { main: '', detail: '' };
+  }
+
+  const lineParts = raw
+    .split(/\r?\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (lineParts.length > 1) {
+    return {
+      main: lineParts[0],
+      detail: lineParts.slice(1).join(' '),
+    };
+  }
+
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) {
+    return { main: raw, detail: '' };
+  }
+
+  return {
+    main: words[0],
+    detail: words.slice(1).join(' '),
+  };
+}
+
+function drawDiffStorageBadge(x, y, w, h, colorA, colorB, topText, contentText = '') {
+  const { main, detail } = splitDiffStorageBadgeText(contentText);
+  const mainText = main || contentText || '';
+  drawDiffValueBadge(x, y, w, h, colorA, colorB, topText, mainText, detail);
+}
+
+function resolveDiffBadgeColors(baseColor, fallbackA, fallbackB) {
+  if (isHexColor(baseColor)) {
+    return [
+      shadeHexColor(baseColor, 0.16),
+      shadeHexColor(baseColor, -0.08),
+    ];
+  }
+  return [fallbackA, fallbackB];
+}
+
+function drawDiffPromoText(x, y, w, h) {
+  const lead = String(state.diffPromoLead || '').trim();
+  const value = String(state.diffPromoValue || '').trim();
+  const tail = String(state.diffPromoTail || '').trim();
+  if (!lead && !value && !tail) {
+    return;
+  }
+
+  const textColor = isHexColor(state.diffPromoTextColor) ? state.diffPromoTextColor : '#171717';
+  const valueColor = isHexColor(state.diffPromoValueColor) ? state.diffPromoValueColor : '#4dbb35';
+  const promoFamily = 'Bahnschrift, Segoe UI, Arial, sans-serif';
+  const promoBaseSize = Math.max(16, Number(state.diffPromoFontSize) || 28);
+  const promoWeight = state.diffPromoBold ? '800' : '600';
+  const promoValueWeight = state.diffPromoBold ? '900' : '800';
+  const promoStyle = state.diffPromoItalic ? 'italic ' : '';
+  const promoUnderline = !!state.diffPromoUnderline;
+  const leadH = Math.round(h * 0.18);
+  const valueH = Math.round(h * 0.22);
+  const tailH = Math.round(h * 0.22);
+  const gap = Math.max(4, Math.round(h * 0.03));
+  const totalH = leadH + valueH + tailH + (gap * 2);
+  const startY = y + Math.max(0, Math.round((h - totalH) / 2));
+
+  if (lead) {
+    drawCenteredBadgeLines(lead.toUpperCase(), x, startY, w, leadH, textColor, promoBaseSize, 14, promoWeight, 2, promoFamily, promoStyle, promoUnderline);
+  }
+  if (value) {
+    drawCenteredBadgeLines(value.toUpperCase(), x, startY + leadH + gap, w, valueH, valueColor, Math.round(promoBaseSize * 1.5), 20, promoValueWeight, 2, promoFamily, promoStyle, promoUnderline);
+  }
+  if (tail) {
+    drawCenteredBadgeLines(tail.toUpperCase(), x, startY + leadH + valueH + (gap * 2), w, tailH, textColor, promoBaseSize, 14, promoWeight, 3, promoFamily, promoStyle, promoUnderline);
   }
 }
 
@@ -5241,10 +6304,20 @@ function drawTintedImage(img, x, y, w, h, color) {
 }
 
 function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
+  const localizeStorageValue = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+    return state.lang === 'fr'
+      ? raw.replace(/\bGB\b/gi, 'GO')
+      : raw.replace(/\bGO\b/gi, 'GB');
+  };
+
   drawDiffFormatBackdrop(cardX, cardY, cardW, cardH);
 
   const headerOffset = getLayoutOffset('diffHeader');
-  const headerX = cardX + 46 + headerOffset.x;
+  const headerX = cardX + 34 + headerOffset.x;
   const headerY = cardY + 70 + headerOffset.y;
   const headerBaselineY = headerY;
   const headerH = 88;
@@ -5284,7 +6357,7 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
 
   if (modelText) {
     const modelColor = String(state.diffModelColor || '#1471bf');
-    const modelW = Math.max(180, cardW - (modelStartX - cardX) - 320);
+    const modelW = Math.max(180, cardW - (modelStartX - cardX) - 380);
     const modelWeight = state.diffModelBold ? '800' : '400';
     const modelFont = `${state.diffModelItalic ? 'italic ' : ''}${modelWeight}`;
     const modelSize = fitText(modelText, modelW, modelFont, Math.max(18, Number(state.diffModelFontSize) || 62), 18, 'Segoe UI');
@@ -5306,7 +6379,7 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   const imageBox = getDeviceImageBoxRect();
   if (state.sectionEnabled.image !== false && currentDeviceImages.length > 0) {
     drawDeviceImageLayers(imageBox);
-    registerDraggableRegion('device', imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+    registerDraggableRegion('diffDevice', imageBox.x, imageBox.y, imageBox.w, imageBox.h);
     registerRemovableElement(imageBox.x, imageBox.y, imageBox.w, imageBox.h, () => {
       state.sectionEnabled.image = false;
     });
@@ -5318,18 +6391,170 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
     drawDefaultDeviceImage(defaultPcImageObj, DEFAULT_PC_IMAGE_CROP, getDefaultPcImageRect(), DEFAULT_PC_IMAGE_ID, isDefaultDeviceImageSelected);
   }
 
+  if (state.sectionEnabled.pointsText !== false && generatorPointsTextImageObj?.complete) {
+    const pointsOffset = getLayoutOffset('diffPointsText');
+    const pointsSize = normalizeBoxSize(state.diffPointsTextSize, DEFAULT_DIFF_POINTS_TEXT_SIZE);
+    const pointsWidth = Math.max(90, Number(pointsSize?.w) || DEFAULT_DIFF_POINTS_TEXT_SIZE.w);
+    const pointsHeight = Math.max(90, Number(pointsSize?.h) || DEFAULT_DIFF_POINTS_TEXT_SIZE.h);
+    const pointsX = cardX + cardW - pointsWidth - 78 + pointsOffset.x;
+    const pointsY = cardY + 6 + pointsOffset.y;
+    const rotatedBounds = drawRotatedImageContain(
+      generatorPointsTextImageObj,
+      pointsX,
+      pointsY,
+      pointsWidth,
+      pointsHeight,
+      state.diffPointsTextRotation
+    );
+    pointsTextBodyRect = rotatedBounds;
+    if (isPointsTextSelected) {
+      ctx.save();
+      ctx.strokeStyle = '#2c8eff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(rotatedBounds.x, rotatedBounds.y, rotatedBounds.w, rotatedBounds.h);
+      ctx.restore();
+    }
+    drawResizeHandle(
+      rotatedBounds.x,
+      rotatedBounds.y,
+      rotatedBounds.w,
+      rotatedBounds.h,
+      Number(pointsSize?.w) || DEFAULT_DIFF_POINTS_TEXT_SIZE.w,
+      Number(pointsSize?.h) || DEFAULT_DIFF_POINTS_TEXT_SIZE.h,
+      isPointsTextSelected,
+      90,
+      90,
+      (rect) => {
+        pointsTextResizeHandleRect = rect;
+      }
+    );
+    registerDraggableRegion('diffPointsText', rotatedBounds.x, rotatedBounds.y, rotatedBounds.w, rotatedBounds.h);
+  } else {
+    pointsTextBodyRect = null;
+    pointsTextResizeHandleRect = null;
+  }
+
+  if (state.sectionEnabled.guarantee !== false && generatorSideGuaranteeImageObj?.complete) {
+    const warrantyOffset = getLayoutOffset('diffWarranty');
+    const guaranteeSource = state.guaranteeBadgeSizeAdjusted
+      ? state.guaranteeBadgeSize
+      : DEFAULT_DIFF_SIDE_GUARANTEE_SIZE;
+    const badgeW = Math.max(120, Number(guaranteeSource?.w) || DEFAULT_DIFF_SIDE_GUARANTEE_SIZE.w);
+    const badgeH = Math.max(120, Number(guaranteeSource?.h) || DEFAULT_DIFF_SIDE_GUARANTEE_SIZE.h);
+    const badgeX = cardX + cardW - badgeW - 74 + warrantyOffset.x;
+    const badgeY = cardY + 126 + warrantyOffset.y;
+    guaranteeBadgeBodyRect = { x: badgeX, y: badgeY, w: badgeW, h: badgeH };
+    drawImageContain(generatorSideGuaranteeImageObj, badgeX, badgeY, badgeW, badgeH);
+    drawResizeHandle(badgeX, badgeY, badgeW, badgeH, badgeW, badgeH, isGuaranteeBadgeSelected, 120, 120, (rect) => {
+      guaranteeBadgeResizeHandleRect = rect;
+    });
+    registerDraggableRegion('diffWarranty', badgeX, badgeY, badgeW, badgeH);
+  } else {
+    guaranteeBadgeBodyRect = null;
+    guaranteeBadgeResizeHandleRect = null;
+  }
+
+  if (state.sectionEnabled.reconditioned !== false && generatorReconditionedImageObj?.complete) {
+    const reconditionedOffset = getLayoutOffset('diffReconditioned');
+    const reconditionedSize = normalizeBoxSize(state.diffReconditionedSize, DEFAULT_DIFF_RECONDITIONED_SIZE);
+    const reconditionedWidth = Math.max(90, Number(reconditionedSize?.w) || DEFAULT_DIFF_RECONDITIONED_SIZE.w);
+    const reconditionedHeight = Math.max(90, Number(reconditionedSize?.h) || DEFAULT_DIFF_RECONDITIONED_SIZE.h);
+    const reconditionedX = cardX + cardW - reconditionedWidth - 88 + reconditionedOffset.x;
+    const reconditionedY = cardY + 358 + reconditionedOffset.y;
+    const rotatedBounds = drawRotatedImageContain(
+      generatorReconditionedImageObj,
+      reconditionedX,
+      reconditionedY,
+      reconditionedWidth,
+      reconditionedHeight,
+      state.diffReconditionedRotation
+    );
+    reconditionedBodyRect = rotatedBounds;
+    if (isReconditionedSelected) {
+      ctx.save();
+      ctx.strokeStyle = '#2c8eff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(rotatedBounds.x, rotatedBounds.y, rotatedBounds.w, rotatedBounds.h);
+      ctx.restore();
+    }
+    drawResizeHandle(
+      rotatedBounds.x,
+      rotatedBounds.y,
+      rotatedBounds.w,
+      rotatedBounds.h,
+      reconditionedWidth,
+      reconditionedHeight,
+      isReconditionedSelected,
+      90,
+      90,
+      (rect) => {
+        reconditionedResizeHandleRect = rect;
+      }
+    );
+    registerDraggableRegion('diffReconditioned', rotatedBounds.x, rotatedBounds.y, rotatedBounds.w, rotatedBounds.h);
+  } else {
+    reconditionedBodyRect = null;
+    reconditionedResizeHandleRect = null;
+  }
+
   const bottomOffset = getLayoutOffset('diffBottomBadges');
   const badgeY = cardY + cardH - 210 + bottomOffset.y;
   const badgeW = 150;
   const badgeH = 150;
   const gap = 18;
-  const startX = cardX + Math.round((cardW - ((badgeW * 4) + (gap * 3))) / 2) + bottomOffset.x;
-  const processorBadgeMain = [state.processorCore, state.processorNumber].filter(Boolean).join(' ');
-  drawDiffSquareBadge(startX, badgeY, badgeW, badgeH, '#1b9fea', '#167ec8', 'Processor', processorBadgeMain || 'Core i5', '');
-  drawDiffSquareBadge(startX + badgeW + gap, badgeY, badgeW, badgeH, '#65c3c5', '#3e96a0', 'RAM', (state.ram || '8 GB').replace(' ', ''), (state.ramType || '').toUpperCase());
-  drawDiffSquareBadge(startX + ((badgeW + gap) * 2), badgeY, badgeW, badgeH, '#f2c246', '#d8a429', (state.storageType || 'SSD').toUpperCase(), (state.storageSize || '256 GB').replace(' ', ''), (state.storageType || 'SSD').toUpperCase());
-  drawDiffSquareBadge(startX + ((badgeW + gap) * 3), badgeY, badgeW, badgeH, '#1d9be4', '#116db7', 'OS', state.os || 'Windows', '');
-  registerDraggableRegion('diffBottomBadges', startX, badgeY, (badgeW * 4) + (gap * 3), badgeH);
+  const extraStorageEnabled = !!state.diffExtraStorageEnabled;
+  const badgeCount = extraStorageEnabled ? 5 : 4;
+  const totalBadgeWidth = (badgeW * badgeCount) + (gap * (badgeCount - 1));
+  const startX = cardX + Math.round((cardW - totalBadgeWidth) / 2) + bottomOffset.x;
+  const [processorColorA, processorColorB] = resolveDiffBadgeColors(state.diffProcessorBadgeColor, '#1b9fea', '#167ec8');
+  const [ramColorA, ramColorB] = resolveDiffBadgeColors(state.diffRamBadgeColor, '#65c3c5', '#3e96a0');
+  const [storageColorA, storageColorB] = resolveDiffBadgeColors(state.diffStorageBadgeColor, '#f2c246', '#d8a429');
+  const [extraStorageColorA, extraStorageColorB] = resolveDiffBadgeColors(state.diffExtraStorageBadgeColor, '#8a98ab', '#5f6e82');
+  const [osColorA, osColorB] = resolveDiffBadgeColors(state.diffOsBadgeColor, '#1d9be4', '#116db7');
+  const processorPrimaryText = String(state.processorCore || '').trim();
+  const processorSecondaryText = String(state.processorNumber || '').trim();
+  const processorFallback = [processorPrimaryText, processorSecondaryText].filter(Boolean).join(' ').trim();
+  drawDiffValueBadge(
+    startX,
+    badgeY,
+    badgeW,
+    badgeH,
+    processorColorA,
+    processorColorB,
+    'Processor',
+    processorPrimaryText || processorFallback || 'Core i5',
+    processorSecondaryText
+  );
+  drawDiffValueBadge(startX + badgeW + gap, badgeY, badgeW, badgeH, ramColorA, ramColorB, 'RAM', state.ram || '8 GB', (state.ramType || '').toUpperCase());
+  drawDiffStorageBadge(
+    startX + ((badgeW + gap) * 2),
+    badgeY,
+    badgeW,
+    badgeH,
+    storageColorA,
+    storageColorB,
+    (state.storageType || 'SSD').toUpperCase(),
+    localizeStorageValue(state.storageSize || '256 GB')
+  );
+  let osBadgeX = startX + ((badgeW + gap) * 3);
+  if (extraStorageEnabled) {
+    drawDiffStorageBadge(
+      startX + ((badgeW + gap) * 3),
+      badgeY,
+      badgeW,
+      badgeH,
+      extraStorageColorA,
+      extraStorageColorB,
+      (state.diffExtraStorageType || 'HDD').toUpperCase(),
+      localizeStorageValue(state.diffExtraStorageSize || '1 TB')
+    );
+    osBadgeX = startX + ((badgeW + gap) * 4);
+  }
+  const osBadgeText = splitDiffOsBadgeText(state.os || 'Windows');
+  drawDiffValueBadge(osBadgeX, badgeY, badgeW, badgeH, osColorA, osColorB, 'OS', osBadgeText.main || 'Windows', osBadgeText.detail);
+  registerDraggableRegion('diffBottomBadges', startX, badgeY, totalBadgeWidth, badgeH);
 }
 
 function drawCustomTextLayers() {
@@ -5403,6 +6628,10 @@ function drawPoster() {
   osBadgeBodyRect = null;
   guaranteeBadgeResizeHandleRect = null;
   guaranteeBadgeBodyRect = null;
+  pointsTextResizeHandleRect = null;
+  pointsTextBodyRect = null;
+  reconditionedResizeHandleRect = null;
+  reconditionedBodyRect = null;
   stackBadgeRects = [];
   stackBadgeResizeHandleRects = [];
   const w = canvas.width;
@@ -6316,6 +7545,10 @@ canvas.addEventListener('mousedown', (event) => {
   const osBadgeHit = pointInRect(p, osBadgeBodyRect);
   const guaranteeBadgeHandleHit = pointInRect(p, guaranteeBadgeResizeHandleRect);
   const guaranteeBadgeHit = pointInRect(p, guaranteeBadgeBodyRect);
+  const pointsTextHandleHit = pointInRect(p, pointsTextResizeHandleRect);
+  const pointsTextHit = pointInRect(p, pointsTextBodyRect);
+  const reconditionedHandleHit = pointInRect(p, reconditionedResizeHandleRect);
+  const reconditionedHit = pointInRect(p, reconditionedBodyRect);
   const stackBadgeHandleHit = findTopStackBadgeHandle(p);
   const stackBadgeHit = findTopStackBadgeBody(p);
   const draggableHit = findTopDraggableRegion(p);
@@ -6361,9 +7594,10 @@ canvas.addEventListener('mousedown', (event) => {
   if (imageHit) {
     if (isDefaultDeviceImageId(imageHit.id)) {
       isDefaultDeviceImageSelected = true;
-      const current = getLayoutOffset('device');
+      const deviceDragKey = state.generator === 'diff' ? 'diffDevice' : 'device';
+      const current = getLayoutOffset(deviceDragKey);
       activeDrag = {
-        key: 'device',
+        key: deviceDragKey,
         startX: p.x,
         startY: p.y,
         baseX: current.x,
@@ -6391,7 +7625,10 @@ canvas.addEventListener('mousedown', (event) => {
 
   const hadSelectedDeviceImage = !!getSelectedInteractiveImageId();
   const hadDefaultDeviceImageSelected = isDefaultDeviceImageSelected;
-  const keepDefaultDeviceImageSelected = isDefaultDeviceImageId(handleHit?.id) || isDefaultDeviceImageId(imageHit?.id) || draggableHit?.key === 'device';
+  const keepDefaultDeviceImageSelected = isDefaultDeviceImageId(handleHit?.id)
+    || isDefaultDeviceImageId(imageHit?.id)
+    || draggableHit?.key === 'device'
+    || draggableHit?.key === 'diffDevice';
   const keepLogoSelected = logoHandleHit || logoBadgeHandleHit || logoBodyHit || logoBadgeHit || draggableHit?.key === 'logo';
   const shouldUnselectLogo = isLogoSelected && !keepLogoSelected;
   const shouldSelectLogo = !isLogoSelected && (logoBodyHit || logoHandleHit || logoBadgeHandleHit || logoBadgeHit);
@@ -6401,9 +7638,15 @@ canvas.addEventListener('mousedown', (event) => {
   const keepOsSelected = osBadgeHandleHit || osBadgeHit || draggableHit?.key === 'os';
   const shouldUnselectOs = isOsBadgeSelected && !keepOsSelected;
   const shouldSelectOs = !isOsBadgeSelected && (osBadgeHit || osBadgeHandleHit);
-  const keepGuaranteeSelected = guaranteeBadgeHandleHit || guaranteeBadgeHit || draggableHit?.key === 'guarantee';
+  const keepGuaranteeSelected = guaranteeBadgeHandleHit || guaranteeBadgeHit || draggableHit?.key === 'guarantee' || draggableHit?.key === 'diffWarranty';
   const shouldUnselectGuarantee = isGuaranteeBadgeSelected && !keepGuaranteeSelected;
   const shouldSelectGuarantee = !isGuaranteeBadgeSelected && (guaranteeBadgeHit || guaranteeBadgeHandleHit);
+  const keepPointsTextSelected = pointsTextHandleHit || pointsTextHit || draggableHit?.key === 'diffPointsText';
+  const shouldUnselectPointsText = isPointsTextSelected && !keepPointsTextSelected;
+  const shouldSelectPointsText = !isPointsTextSelected && (pointsTextHit || pointsTextHandleHit);
+  const keepReconditionedSelected = reconditionedHandleHit || reconditionedHit || draggableHit?.key === 'diffReconditioned';
+  const shouldUnselectReconditioned = isReconditionedSelected && !keepReconditionedSelected;
+  const shouldSelectReconditioned = !isReconditionedSelected && (reconditionedHit || reconditionedHandleHit);
   const shouldSelectStackBadge = !!(stackBadgeHit || stackBadgeHandleHit);
   const shouldUnselectStackBadge = selectedStackBadgeKey && !shouldSelectStackBadge && draggableHit?.key !== 'tags';
   if (hadSelectedDeviceImage) {
@@ -6432,12 +7675,22 @@ canvas.addEventListener('mousedown', (event) => {
   } else if (shouldSelectGuarantee) {
     isGuaranteeBadgeSelected = true;
   }
+  if (shouldUnselectPointsText) {
+    isPointsTextSelected = false;
+  } else if (shouldSelectPointsText) {
+    isPointsTextSelected = true;
+  }
+  if (shouldUnselectReconditioned) {
+    isReconditionedSelected = false;
+  } else if (shouldSelectReconditioned) {
+    isReconditionedSelected = true;
+  }
   if (shouldSelectStackBadge) {
     selectedStackBadgeKey = (stackBadgeHandleHit || stackBadgeHit).key;
   } else if (shouldUnselectStackBadge) {
     selectedStackBadgeKey = null;
   }
-  if (hadSelectedDeviceImage || (hadDefaultDeviceImageSelected && !keepDefaultDeviceImageSelected) || shouldUnselectLogo || shouldSelectLogo || shouldUnselectStorage || shouldSelectStorage || shouldUnselectOs || shouldSelectOs || shouldUnselectGuarantee || shouldSelectGuarantee || shouldSelectStackBadge || shouldUnselectStackBadge) {
+  if (hadSelectedDeviceImage || (hadDefaultDeviceImageSelected && !keepDefaultDeviceImageSelected) || shouldUnselectLogo || shouldSelectLogo || shouldUnselectStorage || shouldSelectStorage || shouldUnselectOs || shouldSelectOs || shouldUnselectGuarantee || shouldSelectGuarantee || shouldUnselectPointsText || shouldSelectPointsText || shouldUnselectReconditioned || shouldSelectReconditioned || shouldSelectStackBadge || shouldUnselectStackBadge) {
     drawPoster();
   }
 
@@ -6482,6 +7735,36 @@ canvas.addEventListener('mousedown', (event) => {
       h: Number(state.guaranteeBadgeSize?.h) || DEFAULT_GUARANTEE_BADGE_SIZE.h,
       minW: guaranteeBadgeResizeHandleRect.minW || 96,
       minH: guaranteeBadgeResizeHandleRect.minH || 112,
+    };
+    canvas.style.cursor = 'nwse-resize';
+    event.preventDefault();
+    return;
+  }
+
+  if (pointsTextHandleHit && pointsTextResizeHandleRect) {
+    isResizingPointsText = true;
+    pointsTextResizeStart = {
+      x: p.x,
+      y: p.y,
+      w: Number(state.diffPointsTextSize?.w) || DEFAULT_DIFF_POINTS_TEXT_SIZE.w,
+      h: Number(state.diffPointsTextSize?.h) || DEFAULT_DIFF_POINTS_TEXT_SIZE.h,
+      minW: pointsTextResizeHandleRect.minW || 90,
+      minH: pointsTextResizeHandleRect.minH || 90,
+    };
+    canvas.style.cursor = 'nwse-resize';
+    event.preventDefault();
+    return;
+  }
+
+  if (reconditionedHandleHit && reconditionedResizeHandleRect) {
+    isResizingReconditioned = true;
+    reconditionedResizeStart = {
+      x: p.x,
+      y: p.y,
+      w: Number(state.diffReconditionedSize?.w) || DEFAULT_DIFF_RECONDITIONED_SIZE.w,
+      h: Number(state.diffReconditionedSize?.h) || DEFAULT_DIFF_RECONDITIONED_SIZE.h,
+      minW: reconditionedResizeHandleRect.minW || 90,
+      minH: reconditionedResizeHandleRect.minH || 90,
     };
     canvas.style.cursor = 'nwse-resize';
     event.preventDefault();
@@ -6709,6 +7992,28 @@ canvas.addEventListener('mousemove', (event) => {
     return;
   }
 
+  if (isResizingPointsText && pointsTextResizeStart) {
+    const dx = p.x - pointsTextResizeStart.x;
+    const dy = p.y - pointsTextResizeStart.y;
+    const nextW = Math.max(pointsTextResizeStart.minW, Math.round(pointsTextResizeStart.w + dx));
+    const nextH = Math.max(pointsTextResizeStart.minH, Math.round(pointsTextResizeStart.h + dy));
+    state.diffPointsTextSize = { w: nextW, h: nextH };
+    drawPoster();
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+
+  if (isResizingReconditioned && reconditionedResizeStart) {
+    const dx = p.x - reconditionedResizeStart.x;
+    const dy = p.y - reconditionedResizeStart.y;
+    const nextW = Math.max(reconditionedResizeStart.minW, Math.round(reconditionedResizeStart.w + dx));
+    const nextH = Math.max(reconditionedResizeStart.minH, Math.round(reconditionedResizeStart.h + dy));
+    state.diffReconditionedSize = { w: nextW, h: nextH };
+    drawPoster();
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+
   if (pointInRect(p, logoResizeHandleRect)) {
     canvas.style.cursor = 'nwse-resize';
     return;
@@ -6726,6 +8031,14 @@ canvas.addEventListener('mousemove', (event) => {
     return;
   }
   if (pointInRect(p, guaranteeBadgeResizeHandleRect)) {
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+  if (pointInRect(p, pointsTextResizeHandleRect)) {
+    canvas.style.cursor = 'nwse-resize';
+    return;
+  }
+  if (pointInRect(p, reconditionedResizeHandleRect)) {
     canvas.style.cursor = 'nwse-resize';
     return;
   }
@@ -6772,6 +8085,8 @@ window.addEventListener('mouseup', () => {
     || isResizingStackBadge
     || isResizingOsBadge
     || isResizingGuaranteeBadge
+    || isResizingPointsText
+    || isResizingReconditioned
   );
   isResizingDeviceImage = false;
   resizingDeviceImageId = null;
@@ -6791,6 +8106,10 @@ window.addEventListener('mouseup', () => {
   osBadgeResizeStart = null;
   isResizingGuaranteeBadge = false;
   guaranteeBadgeResizeStart = null;
+  isResizingPointsText = false;
+  pointsTextResizeStart = null;
+  isResizingReconditioned = false;
+  reconditionedResizeStart = null;
   activeDrag = null;
   isDraggingText = false;
   draggingTextId = null;
@@ -6879,6 +8198,14 @@ document.addEventListener('mousedown', (event) => {
   }
   if (event.target !== canvas && isGuaranteeBadgeSelected) {
     isGuaranteeBadgeSelected = false;
+    shouldRedraw = true;
+  }
+  if (event.target !== canvas && isPointsTextSelected) {
+    isPointsTextSelected = false;
+    shouldRedraw = true;
+  }
+  if (event.target !== canvas && isReconditionedSelected) {
+    isReconditionedSelected = false;
     shouldRedraw = true;
   }
   if (event.target !== canvas && selectedStackBadgeKey) {
@@ -7066,6 +8393,9 @@ setUiLanguage();
 renderControls();
 loadDefaultPcImage();
 loadDefaultLaptopImage();
+loadGeneratorPointsTextImage();
+loadGeneratorReconditionedImage();
+loadSelectedDiffGuaranteeImage();
 loadGeneratorBackgroundImage();
 drawPoster();
 
