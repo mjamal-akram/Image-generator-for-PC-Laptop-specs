@@ -22,6 +22,7 @@
 };
 
 const LAYOUT_PREFERENCES_STORAGE_KEY = 'jam_iw-layout-preferences-v5';
+const DEFAULT_LAYOUT_STORAGE_KEY = 'jam_iw-default-layout-v1';
 const DEFAULT_LOGO_SIZE = 56;
 const DEFAULT_LOGO_BADGE_SIZE = { w: 150, h: 150 };
 const DEFAULT_STORAGE_BADGE_SIZE = { w: 340, h: 108 };
@@ -46,6 +47,7 @@ const GENERATOR_BACKGROUND_PRESETS = {
   bg1: 'assets/generator-bg.jpg',
   bg2: 'assets/generator-bg-2.jpg',
   bg3: 'assets/generator-bg-3.jpg',
+  bg4: 'assets/generator-bg-4.png',
 };
 const GENERATOR_GUARANTEE_PRESETS = {
   '1m': 'assets/generator-guarantee-1m.png',
@@ -72,6 +74,84 @@ function normalizeBoxSize(value, fallback) {
     w: Number.isFinite(width) ? width : fallback.w,
     h: Number.isFinite(height) ? height : fallback.h,
   };
+}
+
+function deepCloneJsonValue(value) {
+  if (value === undefined || value === null || typeof value !== 'object') {
+    return value;
+  }
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return undefined;
+  }
+}
+
+function serializeSavedLayoutImageLayer(layer) {
+  if (!layer?.dataUrl) {
+    return null;
+  }
+  const x = Number(layer.x);
+  const y = Number(layer.y);
+  const w = Number(layer.w);
+  const h = Number(layer.h);
+  return {
+    id: layer.id ?? null,
+    dataUrl: layer.dataUrl,
+    x: Number.isFinite(x) ? x : 0,
+    y: Number.isFinite(y) ? y : 0,
+    w: Number.isFinite(w) ? w : 0,
+    h: Number.isFinite(h) ? h : 0,
+  };
+}
+
+function serializeSavedLayoutImageLayers(layers) {
+  return Array.isArray(layers)
+    ? layers.map(serializeSavedLayoutImageLayer).filter(Boolean)
+    : [];
+}
+
+function serializeSavedLayoutImageGroups(groups) {
+  const snapshot = {};
+  Object.entries(groups || {}).forEach(([key, layers]) => {
+    snapshot[key] = serializeSavedLayoutImageLayers(layers);
+  });
+  return snapshot;
+}
+
+function hydrateSavedLayoutImageLayer(layer) {
+  if (!layer?.dataUrl) {
+    return null;
+  }
+  const imageObj = new Image();
+  imageObj.onload = () => drawPoster();
+  imageObj.src = layer.dataUrl;
+  return {
+    id: layer.id ?? null,
+    dataUrl: layer.dataUrl,
+    imageObj,
+    x: Number.isFinite(Number(layer.x)) ? Number(layer.x) : 0,
+    y: Number.isFinite(Number(layer.y)) ? Number(layer.y) : 0,
+    w: Number.isFinite(Number(layer.w)) ? Number(layer.w) : 0,
+    h: Number.isFinite(Number(layer.h)) ? Number(layer.h) : 0,
+  };
+}
+
+function hydrateSavedLayoutImageLayers(layers) {
+  return Array.isArray(layers)
+    ? layers.map(hydrateSavedLayoutImageLayer).filter(Boolean)
+    : [];
+}
+
+function hydrateSavedLayoutImageGroups(groups) {
+  const restored = {
+    PC: [],
+    Laptop: [],
+  };
+  Object.entries(groups || {}).forEach(([key, layers]) => {
+    restored[key] = hydrateSavedLayoutImageLayers(layers);
+  });
+  return restored;
 }
 
 function cloneDefaultStackBadgeSizes() {
@@ -145,6 +225,138 @@ function persistLayoutPreferences() {
   } catch {
     // Ignore storage failures and keep the editor usable.
   }
+}
+
+function syncUploadedAssetObjects() {
+  if (state.chargerImageDataUrl) {
+    chargerImageObj = new Image();
+    chargerImageObj.onload = () => drawPoster();
+    chargerImageObj.src = state.chargerImageDataUrl;
+  } else if (Array.isArray(state.chargerImages) && state.chargerImages.length > 0) {
+    chargerImageObj = state.chargerImages[state.chargerImages.length - 1].imageObj || null;
+  } else {
+    chargerImageObj = null;
+  }
+
+  if (state.logoImageDataUrl) {
+    logoImageObj = new Image();
+    logoImageObj.onload = () => drawPoster();
+    logoImageObj.src = state.logoImageDataUrl;
+  } else {
+    logoImageObj = null;
+  }
+}
+
+function createSavedDefaultLayoutSnapshot() {
+  const snapshot = {};
+  Object.entries(state).forEach(([key, value]) => {
+    if (key === 'deviceImages' || key === 'chargerImages') {
+      return;
+    }
+    const clonedValue = deepCloneJsonValue(value);
+    if (clonedValue !== undefined) {
+      snapshot[key] = clonedValue;
+    }
+  });
+  snapshot.deviceImages = serializeSavedLayoutImageGroups(state.deviceImages);
+  snapshot.chargerImages = serializeSavedLayoutImageLayers(state.chargerImages);
+  return {
+    version: 1,
+    savedAt: Date.now(),
+    state: snapshot,
+  };
+}
+
+function readSavedDefaultLayout() {
+  try {
+    const raw = window.localStorage?.getItem(DEFAULT_LAYOUT_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    return parsed?.state ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistSavedDefaultLayout() {
+  try {
+    window.localStorage?.setItem(
+      DEFAULT_LAYOUT_STORAGE_KEY,
+      JSON.stringify(createSavedDefaultLayoutSnapshot())
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function applySavedDefaultLayout(snapshot) {
+  const savedState = snapshot?.state;
+  if (!savedState || typeof savedState !== 'object') {
+    return false;
+  }
+
+  const defaultSectionEnabled = deepCloneJsonValue(state.sectionEnabled) || {};
+  const defaultSelectedDeviceImageIds = deepCloneJsonValue(state.selectedDeviceImageId) || {
+    PC: null,
+    Laptop: null,
+  };
+
+  Object.entries(savedState).forEach(([key, value]) => {
+    if (key === 'deviceImages' || key === 'chargerImages') {
+      return;
+    }
+    const clonedValue = deepCloneJsonValue(value);
+    if (clonedValue !== undefined) {
+      state[key] = clonedValue;
+    }
+  });
+
+  state.generator = ['charger', 'diff'].includes(state.generator) ? state.generator : 'diff';
+  state.type = state.type === 'Laptop' ? 'Laptop' : 'PC';
+  state.layoutOffsets = {
+    ...cloneDefaultLayoutOffsets(),
+    ...(deepCloneJsonValue(savedState.layoutOffsets) || {}),
+  };
+  state.sectionEnabled = {
+    ...defaultSectionEnabled,
+    ...(deepCloneJsonValue(savedState.sectionEnabled) || {}),
+  };
+  state.selectedDeviceImageId = {
+    ...defaultSelectedDeviceImageIds,
+    ...(deepCloneJsonValue(savedState.selectedDeviceImageId) || {}),
+  };
+  state.deviceImages = hydrateSavedLayoutImageGroups(savedState.deviceImages);
+  state.chargerImages = hydrateSavedLayoutImageLayers(savedState.chargerImages);
+  state.logoSize = Number.isFinite(Number(state.logoSize)) ? Number(state.logoSize) : DEFAULT_LOGO_SIZE;
+  state.logoBadgeSize = normalizeBoxSize(state.logoBadgeSize, DEFAULT_LOGO_BADGE_SIZE);
+  state.storageBadgeSize = normalizeBoxSize(state.storageBadgeSize, DEFAULT_STORAGE_BADGE_SIZE);
+  state.osBadgeSize = normalizeBoxSize(state.osBadgeSize, DEFAULT_OS_BADGE_SIZE);
+  state.guaranteeBadgeSize = normalizeBoxSize(state.guaranteeBadgeSize, DEFAULT_GUARANTEE_BADGE_SIZE);
+  state.defaultPcImageSize = normalizeBoxSize(state.defaultPcImageSize, DEFAULT_PC_IMAGE_SIZE);
+  state.defaultLaptopImageSize = normalizeBoxSize(state.defaultLaptopImageSize, DEFAULT_LAPTOP_IMAGE_SIZE);
+  state.diffPointsTextSize = normalizeBoxSize(state.diffPointsTextSize, DEFAULT_DIFF_POINTS_TEXT_SIZE);
+  state.diffReconditionedSize = normalizeBoxSize(state.diffReconditionedSize, DEFAULT_DIFF_RECONDITIONED_SIZE);
+  const savedStackBadgeSizes = deepCloneJsonValue(savedState.stackBadgeSizes) || {};
+  state.stackBadgeSizes = {
+    processor: normalizeBoxSize(savedStackBadgeSizes.processor, DEFAULT_STACK_BADGE_SIZE),
+    screen: normalizeBoxSize(savedStackBadgeSizes.screen, DEFAULT_STACK_BADGE_SIZE),
+    battery: normalizeBoxSize(savedStackBadgeSizes.battery, DEFAULT_STACK_BADGE_SIZE),
+    storage: normalizeBoxSize(savedStackBadgeSizes.storage, DEFAULT_STACK_BADGE_SIZE),
+    ram: normalizeBoxSize(savedStackBadgeSizes.ram, DEFAULT_STACK_BADGE_SIZE),
+  };
+  state.osBadgeSizeAdjusted = !!state.osBadgeSizeAdjusted;
+  state.guaranteeBadgeSizeAdjusted = !!state.guaranteeBadgeSizeAdjusted;
+
+  syncUploadedAssetObjects();
+  loadGeneratorBackgroundImage();
+  loadGeneratorPointsTextImage();
+  loadGeneratorReconditionedImage();
+  loadSelectedDiffGuaranteeImage();
+  persistLayoutPreferences();
+  return true;
 }
 
 function resetLayoutToDefault() {
@@ -240,7 +452,8 @@ const state = {
   diffBrandBold: true,
   diffBrandItalic: false,
   diffBrandUnderline: false,
-  diffBrandColor: '#1471bf',
+  diffBrandColor: '#ffffff',
+  diffBrandBgColor: '#1471bf',
   diffBackgroundSelection: 'bg1',
   diffBackgroundUploadDataUrl: '',
   diffPointsTextUploadDataUrl: '',
@@ -355,6 +568,7 @@ const i18n = {
     appTitle: 'Jam_iw Softwares',
     generatePng: 'Generate PNG',
     generateJpg: 'Generate JPG',
+    saveLayout: 'Save Layout',
     chooseRatio: 'Choose Aspect Ratio',
     ratioHelp: 'Select a ratio before generating the image.',
     cancel: 'Cancel',
@@ -459,6 +673,7 @@ const i18n = {
       generatorBg1: 'Background 1',
       generatorBg2: 'Background 2',
       generatorBg3: 'Background 3',
+      generatorBg4: 'Background 4',
       generatorBgUpload: 'Uploaded',
       uploadBackground: 'Upload Background',
       clearUploadedBackground: 'Clear Uploaded Background',
@@ -529,6 +744,7 @@ const i18n = {
       textUnderline: 'Underline',
       textSize: 'Text Size',
       textColor: 'Text Color',
+      backgroundColor: 'Background Color',
       diffPromoLead: 'Left Promo Line 1',
       diffPromoLeadHint: 'Example: TESTED ON',
       diffPromoValue: 'Left Promo Highlight',
@@ -558,6 +774,8 @@ const i18n = {
     statusReady: 'Ready to generate.',
     statusGenerating: 'Generating image...',
     statusCanceled: 'Export canceled.',
+    statusLayoutSaved: 'Default layout saved.',
+    statusLayoutSaveFailed: 'Could not save the default layout.',
     statusSaved: (path) => `Image saved: ${path}`,
     ratioNames: {
       '1:1': 'Square (1:1)',
@@ -597,6 +815,7 @@ const i18n = {
     appTitle: 'Jam_iw Softwares',
     generatePng: 'Generer PNG',
     generateJpg: 'Generer JPG',
+    saveLayout: 'Enregistrer La Mise En Page',
     chooseRatio: 'Choisir Le Format',
     ratioHelp: 'Selectionnez un ratio avant de generer limage.',
     cancel: 'Annuler',
@@ -701,6 +920,7 @@ const i18n = {
       generatorBg1: 'Fond 1',
       generatorBg2: 'Fond 2',
       generatorBg3: 'Fond 3',
+      generatorBg4: 'Fond 4',
       generatorBgUpload: 'Importe',
       uploadBackground: 'Telecharger Arriere-plan',
       clearUploadedBackground: 'Supprimer Arriere-plan Importe',
@@ -771,6 +991,7 @@ const i18n = {
       textUnderline: 'Souligne',
       textSize: 'Taille Texte',
       textColor: 'Couleur Texte',
+      backgroundColor: 'Couleur Fond',
       diffPromoLead: 'Promo Gauche Ligne 1',
       diffPromoLeadHint: 'Exemple: TESTE SUR',
       diffPromoValue: 'Valeur Promo Gauche',
@@ -800,6 +1021,8 @@ const i18n = {
     statusReady: 'Pret pour la generation.',
     statusGenerating: 'Generation de limage...',
     statusCanceled: 'Export annule.',
+    statusLayoutSaved: 'Mise en page par defaut enregistree.',
+    statusLayoutSaveFailed: 'Impossible denregistrer la mise en page par defaut.',
     statusSaved: (path) => `Image enregistree: ${path}`,
     ratioNames: {
       '1:1': 'Carre (1:1)',
@@ -1016,6 +1239,8 @@ let logoBadgeResizeHandleRect = null;
 let logoBadgeBodyRect = null;
 let logoImageBodyRect = null;
 let isLogoSelected = false;
+let priceBadgeBodyRect = null;
+let isPriceBadgeSelected = false;
 let storageBadgeResizeHandleRect = null;
 let storageBadgeBodyRect = null;
 let isStorageBadgeSelected = false;
@@ -1073,6 +1298,141 @@ let textCaretVisible = true;
 let textCaretTimer = null;
 let textEditorRoot = null;
 let textEditorInput = null;
+
+function clearExclusiveCanvasSelections() {
+  isLogoSelected = false;
+  isPriceBadgeSelected = false;
+  isStorageBadgeSelected = false;
+  isOsBadgeSelected = false;
+  isGuaranteeBadgeSelected = false;
+  isPointsTextSelected = false;
+  isReconditionedSelected = false;
+  selectedStackBadgeKey = null;
+}
+
+function getCanvasSelectionSnapshot() {
+  return [
+    isLogoSelected ? '1' : '0',
+    isPriceBadgeSelected ? '1' : '0',
+    isStorageBadgeSelected ? '1' : '0',
+    isOsBadgeSelected ? '1' : '0',
+    isGuaranteeBadgeSelected ? '1' : '0',
+    isPointsTextSelected ? '1' : '0',
+    isReconditionedSelected ? '1' : '0',
+    selectedStackBadgeKey || '',
+    isDefaultDeviceImageSelected ? '1' : '0',
+    getSelectedInteractiveImageId() || '',
+  ].join('|');
+}
+
+function resolvePreferredCanvasElementTarget(hits) {
+  const stackTarget = hits.stackBadgeHandleHit || hits.stackBadgeHit || null;
+  const isLogoTargetHit = !!(hits.logoHandleHit || hits.logoBadgeHandleHit || hits.logoBodyHit || hits.logoBadgeHit);
+  const isPriceTargetHit = !!hits.priceBadgeHit;
+  const isStorageTargetHit = !!(hits.storageBadgeHandleHit || hits.storageBadgeHit);
+  const isOsTargetHit = !!(hits.osBadgeHandleHit || hits.osBadgeHit);
+  const isGuaranteeTargetHit = !!(hits.guaranteeBadgeHandleHit || hits.guaranteeBadgeHit);
+  const isPointsTextTargetHit = !!(hits.pointsTextHandleHit || hits.pointsTextHit);
+  const isReconditionedTargetHit = !!(hits.reconditionedHandleHit || hits.reconditionedHit);
+  const selectedStackHit = selectedStackBadgeKey && stackTarget && stackTarget.key === selectedStackBadgeKey;
+
+  if (isLogoSelected && isLogoTargetHit) {
+    return { type: 'logo', dragKey: 'logo' };
+  }
+  if (isPriceBadgeSelected && isPriceTargetHit) {
+    return { type: 'price', dragKey: state.generator === 'diff' ? 'diffPrice' : 'price' };
+  }
+  if (isStorageBadgeSelected && isStorageTargetHit) {
+    return { type: 'storage', dragKey: 'storage' };
+  }
+  if (isOsBadgeSelected && isOsTargetHit) {
+    return { type: 'os', dragKey: 'os' };
+  }
+  if (isGuaranteeBadgeSelected && isGuaranteeTargetHit) {
+    return { type: 'guarantee', dragKey: state.generator === 'diff' ? 'diffWarranty' : 'guarantee' };
+  }
+  if (isPointsTextSelected && isPointsTextTargetHit) {
+    return { type: 'pointsText', dragKey: 'diffPointsText' };
+  }
+  if (isReconditionedSelected && isReconditionedTargetHit) {
+    return { type: 'reconditioned', dragKey: 'diffReconditioned' };
+  }
+  if (selectedStackHit) {
+    return {
+      type: 'stack',
+      stackKey: selectedStackBadgeKey,
+      dragKey: state.generator === 'diff' ? 'diffBottomBadges' : 'tags',
+    };
+  }
+
+  if (isPriceTargetHit) {
+    return { type: 'price', dragKey: state.generator === 'diff' ? 'diffPrice' : 'price' };
+  }
+  if (stackTarget) {
+    return {
+      type: 'stack',
+      stackKey: stackTarget.key,
+      dragKey: state.generator === 'diff' ? 'diffBottomBadges' : 'tags',
+    };
+  }
+  if (isReconditionedTargetHit) {
+    return { type: 'reconditioned', dragKey: 'diffReconditioned' };
+  }
+  if (isPointsTextTargetHit) {
+    return { type: 'pointsText', dragKey: 'diffPointsText' };
+  }
+  if (isGuaranteeTargetHit) {
+    return { type: 'guarantee', dragKey: state.generator === 'diff' ? 'diffWarranty' : 'guarantee' };
+  }
+  if (isOsTargetHit) {
+    return { type: 'os', dragKey: 'os' };
+  }
+  if (isStorageTargetHit) {
+    return { type: 'storage', dragKey: 'storage' };
+  }
+  if (isLogoTargetHit) {
+    return { type: 'logo', dragKey: 'logo' };
+  }
+  return null;
+}
+
+function applyExclusiveCanvasSelection(target) {
+  clearExclusiveCanvasSelections();
+  if (!target) {
+    return;
+  }
+  if (target.type === 'logo') {
+    isLogoSelected = true;
+    return;
+  }
+  if (target.type === 'price') {
+    isPriceBadgeSelected = true;
+    return;
+  }
+  if (target.type === 'storage') {
+    isStorageBadgeSelected = true;
+    return;
+  }
+  if (target.type === 'os') {
+    isOsBadgeSelected = true;
+    return;
+  }
+  if (target.type === 'guarantee') {
+    isGuaranteeBadgeSelected = true;
+    return;
+  }
+  if (target.type === 'pointsText') {
+    isPointsTextSelected = true;
+    return;
+  }
+  if (target.type === 'reconditioned') {
+    isReconditionedSelected = true;
+    return;
+  }
+  if (target.type === 'stack') {
+    selectedStackBadgeKey = target.stackKey || null;
+  }
+}
 let textEditorBoldBtn = null;
 let textEditorItalicBtn = null;
 let textEditorUnderlineBtn = null;
@@ -1283,22 +1643,8 @@ function restoreFromUndoSnapshot(snapshot) {
     : [];
 
   state.chargerImageDataUrl = snapshot.chargerImageDataUrl ?? '';
-  if (state.chargerImageDataUrl) {
-    chargerImageObj = new Image();
-    chargerImageObj.src = state.chargerImageDataUrl;
-  } else if (state.chargerImages.length > 0) {
-    chargerImageObj = state.chargerImages[state.chargerImages.length - 1].imageObj || null;
-  } else {
-    chargerImageObj = null;
-  }
-
   state.logoImageDataUrl = snapshot.logoImageDataUrl ?? '';
-  if (state.logoImageDataUrl) {
-    logoImageObj = new Image();
-    logoImageObj.src = state.logoImageDataUrl;
-  } else {
-    logoImageObj = null;
-  }
+  syncUploadedAssetObjects();
   loadGeneratorPointsTextImage();
   loadGeneratorReconditionedImage();
 }
@@ -1797,9 +2143,13 @@ function setGeneratingState(active) {
   isGenerating = active;
   const pngBtn = document.getElementById('btnGeneratePng');
   const jpgBtn = document.getElementById('btnGenerateJpg');
+  const saveLayoutBtn = document.getElementById('btnSaveLayout');
 
   pngBtn.disabled = active;
   jpgBtn.disabled = active;
+  if (saveLayoutBtn) {
+    saveLayoutBtn.disabled = active;
+  }
   if (btnDesignExport) {
     btnDesignExport.disabled = active;
     btnDesignExport.classList.toggle('loading', active);
@@ -2776,6 +3126,7 @@ function buildDiffFormatSection() {
       underlineKey: 'diffBrandUnderline',
       sizeKey: 'diffBrandFontSize',
       colorKey: 'diffBrandColor',
+      bgColorKey: 'diffBrandBgColor',
       defaultSize: 54,
     },
     {
@@ -2802,7 +3153,7 @@ function buildDiffFormatSection() {
     return btn;
   };
 
-  fields.forEach(({ key, label, placeholder, boldKey, italicKey, underlineKey, sizeKey, colorKey, defaultSize }) => {
+  fields.forEach(({ key, label, placeholder, boldKey, italicKey, underlineKey, sizeKey, colorKey, bgColorKey, defaultSize }) => {
     const fieldLabel = document.createElement('label');
     fieldLabel.textContent = label;
     wrap.appendChild(fieldLabel);
@@ -2906,13 +3257,29 @@ function buildDiffFormatSection() {
 
     const colorInput = document.createElement('input');
     colorInput.type = 'color';
-    colorInput.value = state[colorKey] || '#1471bf';
+    colorInput.value = state[colorKey] || (key === 'diffBrandText' ? '#ffffff' : '#1471bf');
     colorInput.style.marginBottom = '12px';
     colorInput.addEventListener('input', (e) => {
       state[colorKey] = e.target.value;
       drawPoster();
     });
     wrap.appendChild(colorInput);
+
+    if (bgColorKey) {
+      const bgColorLabel = document.createElement('label');
+      bgColorLabel.textContent = t().labels.backgroundColor;
+      wrap.appendChild(bgColorLabel);
+
+      const bgColorInput = document.createElement('input');
+      bgColorInput.type = 'color';
+      bgColorInput.value = state[bgColorKey] || '#1471bf';
+      bgColorInput.style.marginBottom = '12px';
+      bgColorInput.addEventListener('input', (e) => {
+        state[bgColorKey] = e.target.value;
+        drawPoster();
+      });
+      wrap.appendChild(bgColorInput);
+    }
   });
 
   section.appendChild(wrap);
@@ -2937,6 +3304,7 @@ function buildDiffBackgroundSection() {
     ['bg1', t().labels.generatorBg1],
     ['bg2', t().labels.generatorBg2],
     ['bg3', t().labels.generatorBg3],
+    ['bg4', t().labels.generatorBg4],
   ];
 
   presetItems.forEach(([value, label]) => {
@@ -4274,7 +4642,6 @@ function renderControls() {
     controlsPanel.appendChild(
       applySectionToggle(buildOsSection(), 'os')
     );
-    controlsPanel.appendChild(buildColorsSection());
     return;
   }
 
@@ -4986,6 +5353,7 @@ function getPriceTagRect(cardX, cardY, cardW) {
 function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
   const priceRect = getPriceTagRect(cardX, cardY, cardW);
   if (!priceRect) {
+    priceBadgeBodyRect = null;
     return;
   }
   const {
@@ -4996,6 +5364,7 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
     oldPriceText,
     oldPriceHeight,
   } = priceRect;
+  priceBadgeBodyRect = { x: badgeX, y: badgeY, w: badgeW, h: badgeH + oldPriceHeight };
   const display = splitPriceDisplay(state.price);
   const amount = splitPriceNumberParts(display.value);
   const badgeColor = isHexColor(theme.priceBox) ? theme.priceBox : '#ff2128';
@@ -6317,45 +6686,147 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   drawDiffFormatBackdrop(cardX, cardY, cardW, cardH);
 
   const headerOffset = getLayoutOffset('diffHeader');
+  const logoOffset = getLayoutOffset('logo');
   const headerX = cardX + 34 + headerOffset.x;
   const headerY = cardY + 70 + headerOffset.y;
   const headerBaselineY = headerY;
   const headerH = 88;
-  const hasLogoImage = !!(logoImageObj && logoImageObj.complete && state.sectionEnabled.logo !== false);
+  const showDiffHeaderText = state.sectionEnabled.diffFormat !== false;
+  const showLogoHolder = state.sectionEnabled.logo !== false;
+  const hasLogoImage = !!(logoImageObj && logoImageObj.complete && showLogoHolder);
   const companyText = String(state.diffBrandText || '').trim();
   const modelText = String(state.diffModelTitle || '').trim();
   let modelStartX = headerX;
   let headerRegionWidth = 0;
 
-  if (hasLogoImage) {
-    const logoW = 190;
-    const logoH = 74;
-    const drawW = logoW;
-    const drawH = logoH;
-    ctx.drawImage(logoImageObj, headerX, headerY - 52, drawW, drawH);
-    logoImageBodyRect = { x: headerX, y: headerY - 52, w: drawW, h: drawH };
-    modelStartX = headerX + logoW + 18;
-    headerRegionWidth = logoW + 18;
-    registerDraggableRegion('logo', headerX, headerY - 52, drawW, drawH);
-  } else {
-    logoImageBodyRect = null;
-    if (companyText) {
-      const companyColor = String(state.diffBrandColor || '#1471bf');
-      const companyWeight = state.diffBrandBold ? '800' : '400';
-      const companyFont = `${state.diffBrandItalic ? 'italic ' : ''}${companyWeight}`;
-      const companySize = fitText(companyText, 210, companyFont, Math.max(18, Number(state.diffBrandFontSize) || 54), 18, 'Segoe UI');
-      ctx.fillStyle = companyColor;
-      ctx.textBaseline = 'alphabetic';
-      ctx.font = `${companyFont} ${companySize}px Segoe UI`;
-      ctx.fillText(companyText, headerX, headerBaselineY);
-      drawUnderlinedText(headerX, headerBaselineY, companyText, !!state.diffBrandUnderline, companySize, companyColor);
-      const companyWidth = ctx.measureText(companyText).width;
-      modelStartX = headerX + Math.min(230, companyWidth + 18);
-      headerRegionWidth = Math.max(headerRegionWidth, Math.min(230, companyWidth + 18));
+  if (showLogoHolder) {
+    const logoBadgeW = 142;
+    const logoBadgeH = 104;
+    const bottomBadgesTop = cardY + cardH - 210 + getLayoutOffset('diffBottomBadges').y;
+    const logoBaseX = cardX + cardW - logoBadgeW - 34;
+    const logoBaseY = Math.min(
+      cardY + cardH - logoBadgeH - 28,
+      bottomBadgesTop - logoBadgeH - 24
+    );
+    const logoBadgeX = logoBaseX + logoOffset.x;
+    const logoBadgeY = logoBaseY + logoOffset.y;
+    const logoInnerX = logoBadgeX + 8;
+    const logoInnerY = logoBadgeY + 8;
+    const logoInnerW = logoBadgeW - 16;
+    const logoInnerH = logoBadgeH - 16;
+    logoBadgeBodyRect = hasLogoImage ? null : { x: logoBadgeX, y: logoBadgeY, w: logoBadgeW, h: logoBadgeH };
+
+    if (!hasLogoImage) {
+      drawRoundedRect(logoBadgeX, logoBadgeY, logoBadgeW, logoBadgeH, 12, theme.logoBadge);
+      drawRoundedRect(logoInnerX, logoInnerY, logoInnerW, logoInnerH, 8, '#f7fbff');
+      logoResizeHandleRect = null;
+      logoImageBodyRect = null;
+      ctx.fillStyle = '#2f4f76';
+      const logoText = 'LOGO';
+      const logoTextSize = fitText(logoText, logoInnerW - 18, 'bold', 28, 14, 'Segoe UI');
+      ctx.font = `bold ${logoTextSize}px Segoe UI`;
+      const logoTextWidth = ctx.measureText(logoText).width;
+      ctx.fillText(logoText, logoInnerX + (logoInnerW - logoTextWidth) / 2, logoInnerY + 48);
+      ctx.fillStyle = '#f2f8ff';
+      ctx.font = 'bold 22px Segoe UI';
+      const caption = 'LOGO';
+      const captionWidth = ctx.measureText(caption).width;
+      ctx.fillText(caption, logoBadgeX + (logoBadgeW - captionWidth) / 2, logoBadgeY + 94);
+    } else {
+      const maxSize = Math.max(canvas.width, canvas.height) * 2;
+      const rawSize = Number(state.logoSize) || 56;
+      const fitSize = Math.max(24, Math.min(maxSize, rawSize));
+      const ratio = logoImageObj.width / logoImageObj.height || 1;
+      let drawW = fitSize;
+      let drawH = fitSize;
+      if (ratio > 1) {
+        drawH = fitSize / ratio;
+      } else {
+        drawW = fitSize * ratio;
+      }
+      const drawX = logoInnerX + (logoInnerW - drawW) / 2;
+      const drawY = logoInnerY + (logoInnerH - drawH) / 2;
+      ctx.drawImage(logoImageObj, drawX, drawY, drawW, drawH);
+      logoImageBodyRect = { x: drawX, y: drawY, w: drawW, h: drawH };
+      if (isLogoSelected) {
+        const handleSize = 12;
+        const handleX = drawX + drawW - handleSize / 2;
+        const handleY = drawY + drawH - handleSize / 2;
+        drawRoundedRect(handleX, handleY, handleSize, handleSize, 3, '#0c4ca5');
+        logoResizeHandleRect = { x: handleX, y: handleY, w: handleSize, h: handleSize, maxSize };
+      } else {
+        logoResizeHandleRect = null;
+      }
     }
+
+    if (isLogoSelected && !hasLogoImage) {
+      const handleSize = 14;
+      const hitPad = 8;
+      const badgeHandleX = logoBadgeX + logoBadgeW - handleSize / 2;
+      const badgeHandleY = logoBadgeY + logoBadgeH - handleSize / 2;
+      drawRoundedRect(badgeHandleX, badgeHandleY, handleSize, handleSize, 3, '#0a84ff');
+      logoBadgeResizeHandleRect = {
+        x: badgeHandleX - hitPad,
+        y: badgeHandleY - hitPad,
+        w: handleSize + (hitPad * 2),
+        h: handleSize + (hitPad * 2),
+        minW: 120,
+        minH: 104,
+      };
+    } else {
+      logoBadgeResizeHandleRect = null;
+    }
+
+    const logoDragRect = hasLogoImage && logoImageBodyRect
+      ? logoImageBodyRect
+      : { x: logoBadgeX, y: logoBadgeY, w: logoBadgeW, h: logoBadgeH };
+    registerDraggableRegion('logo', logoDragRect.x, logoDragRect.y, logoDragRect.w, logoDragRect.h);
+  } else {
+    logoResizeHandleRect = null;
+    logoBadgeResizeHandleRect = null;
+    logoImageBodyRect = null;
+    logoBadgeBodyRect = null;
   }
 
-  if (modelText) {
+  if (showDiffHeaderText && companyText) {
+    const companyColor = String(state.diffBrandColor || '#ffffff');
+    const companyBgColor = String(state.diffBrandBgColor || '#1471bf');
+    const companyWeight = state.diffBrandBold ? '800' : '400';
+    const companyFont = `${state.diffBrandItalic ? 'italic ' : ''}${companyWeight}`;
+    const companySize = fitText(companyText, 210, companyFont, Math.max(18, Number(state.diffBrandFontSize) || 54), 18, 'Segoe UI');
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `${companyFont} ${companySize}px Segoe UI`;
+    const companyMetrics = ctx.measureText(companyText);
+    const companyWidth = companyMetrics.width;
+    const companyLeft = Math.ceil(companyMetrics.actualBoundingBoxLeft || 0);
+    const companyRight = Math.ceil(companyMetrics.actualBoundingBoxRight || companyWidth);
+    const companyBoundsWidth = Math.max(Math.ceil(companyWidth), companyLeft + companyRight);
+    const companyMeasuredAscent = Math.ceil(companyMetrics.actualBoundingBoxAscent || Math.round(companySize * 0.7));
+    const companyMeasuredDescent = Math.ceil(companyMetrics.actualBoundingBoxDescent || Math.round(companySize * 0.12));
+    const companyAscent = Math.max(Math.round(companySize * 0.74), companyMeasuredAscent);
+    const companyDescent = Math.max(Math.round(companySize * 0.18), companyMeasuredDescent);
+    const badgePadX = Math.max(12, Math.round(companySize * 0.26));
+    const badgePadY = Math.max(8, Math.round(companySize * 0.18));
+    const badgeHeight = companyAscent + companyDescent + (badgePadY * 2);
+    const badgeWidth = Math.ceil(companyBoundsWidth + (badgePadX * 2));
+    const badgeY = Math.round(headerBaselineY - companyAscent - badgePadY);
+    const badgeCenterX = modelStartX + (badgeWidth / 2);
+    const badgeCenterY = badgeY + (badgeHeight / 2);
+    const companyTextX = Math.round(badgeCenterX + ((companyLeft - companyRight) / 2));
+    const companyOpticalOffsetY = Math.max(1, Math.round(companySize * 0.03));
+    const companyTextY = Math.round(
+      badgeCenterY + ((companyMeasuredAscent - companyMeasuredDescent) / 2) + companyOpticalOffsetY
+    );
+    drawRoundedRect(modelStartX, badgeY, badgeWidth, badgeHeight, 2, companyBgColor);
+    ctx.fillStyle = companyColor;
+    ctx.fillText(companyText, companyTextX, companyTextY);
+    drawUnderlinedText(companyTextX, companyTextY, companyText, !!state.diffBrandUnderline, companySize, companyColor);
+    const companyRegionWidth = (modelStartX - headerX) + Math.min(260, badgeWidth + 14);
+    modelStartX += Math.min(260, badgeWidth + 14);
+    headerRegionWidth = Math.max(headerRegionWidth, companyRegionWidth);
+  }
+
+  if (showDiffHeaderText && modelText) {
     const modelColor = String(state.diffModelColor || '#1471bf');
     const modelW = Math.max(180, cardW - (modelStartX - cardX) - 380);
     const modelWeight = state.diffModelBold ? '800' : '400';
@@ -6369,24 +6840,23 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
     headerRegionWidth = Math.max(headerRegionWidth, (modelStartX - headerX) + ctx.measureText(modelText).width);
   }
 
-  if (headerRegionWidth > 0) {
+  if (showDiffHeaderText && headerRegionWidth > 0) {
     registerDraggableRegion('diffHeader', headerX, headerY - 56, headerRegionWidth, headerH);
   }
 
-  drawPriceBadge(cardX, cardY, cardW, cardH, theme);
-
   const currentDeviceImages = getCurrentDeviceImages();
   const imageBox = getDeviceImageBoxRect();
-  if (state.sectionEnabled.image !== false && currentDeviceImages.length > 0) {
+  const showDeviceImage = state.sectionEnabled.type !== false && state.sectionEnabled.image !== false;
+  if (showDeviceImage && currentDeviceImages.length > 0) {
     drawDeviceImageLayers(imageBox);
     registerDraggableRegion('diffDevice', imageBox.x, imageBox.y, imageBox.w, imageBox.h);
     registerRemovableElement(imageBox.x, imageBox.y, imageBox.w, imageBox.h, () => {
       state.sectionEnabled.image = false;
     });
-  } else if (state.sectionEnabled.image !== false && state.type === 'Laptop' && defaultLaptopImageObj?.complete) {
+  } else if (showDeviceImage && state.type === 'Laptop' && defaultLaptopImageObj?.complete) {
     deviceImageHandles = [];
     drawDefaultDeviceImage(defaultLaptopImageObj, DEFAULT_LAPTOP_IMAGE_CROP, getDefaultLaptopImageRect(), DEFAULT_LAPTOP_IMAGE_ID, isDefaultDeviceImageSelected);
-  } else if (state.sectionEnabled.image !== false && defaultPcImageObj?.complete) {
+  } else if (showDeviceImage && defaultPcImageObj?.complete) {
     deviceImageHandles = [];
     drawDefaultDeviceImage(defaultPcImageObj, DEFAULT_PC_IMAGE_CROP, getDefaultPcImageRect(), DEFAULT_PC_IMAGE_ID, isDefaultDeviceImageSelected);
   }
@@ -6505,9 +6975,6 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   const badgeH = 150;
   const gap = 18;
   const extraStorageEnabled = !!state.diffExtraStorageEnabled;
-  const badgeCount = extraStorageEnabled ? 5 : 4;
-  const totalBadgeWidth = (badgeW * badgeCount) + (gap * (badgeCount - 1));
-  const startX = cardX + Math.round((cardW - totalBadgeWidth) / 2) + bottomOffset.x;
   const [processorColorA, processorColorB] = resolveDiffBadgeColors(state.diffProcessorBadgeColor, '#1b9fea', '#167ec8');
   const [ramColorA, ramColorB] = resolveDiffBadgeColors(state.diffRamBadgeColor, '#65c3c5', '#3e96a0');
   const [storageColorA, storageColorB] = resolveDiffBadgeColors(state.diffStorageBadgeColor, '#f2c246', '#d8a429');
@@ -6516,45 +6983,96 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   const processorPrimaryText = String(state.processorCore || '').trim();
   const processorSecondaryText = String(state.processorNumber || '').trim();
   const processorFallback = [processorPrimaryText, processorSecondaryText].filter(Boolean).join(' ').trim();
-  drawDiffValueBadge(
-    startX,
-    badgeY,
-    badgeW,
-    badgeH,
-    processorColorA,
-    processorColorB,
-    'Processor',
-    processorPrimaryText || processorFallback || 'Core i5',
-    processorSecondaryText
-  );
-  drawDiffValueBadge(startX + badgeW + gap, badgeY, badgeW, badgeH, ramColorA, ramColorB, 'RAM', state.ram || '8 GB', (state.ramType || '').toUpperCase());
-  drawDiffStorageBadge(
-    startX + ((badgeW + gap) * 2),
-    badgeY,
-    badgeW,
-    badgeH,
-    storageColorA,
-    storageColorB,
-    (state.storageType || 'SSD').toUpperCase(),
-    localizeStorageValue(state.storageSize || '256 GB')
-  );
-  let osBadgeX = startX + ((badgeW + gap) * 3);
-  if (extraStorageEnabled) {
-    drawDiffStorageBadge(
-      startX + ((badgeW + gap) * 3),
-      badgeY,
-      badgeW,
-      badgeH,
-      extraStorageColorA,
-      extraStorageColorB,
-      (state.diffExtraStorageType || 'HDD').toUpperCase(),
-      localizeStorageValue(state.diffExtraStorageSize || '1 TB')
-    );
-    osBadgeX = startX + ((badgeW + gap) * 4);
+  const visibleBadgeDrawers = [];
+
+  if (state.sectionEnabled.processor !== false) {
+    visibleBadgeDrawers.push((x) => {
+      drawDiffValueBadge(
+        x,
+        badgeY,
+        badgeW,
+        badgeH,
+        processorColorA,
+        processorColorB,
+        'Processor',
+        processorPrimaryText || processorFallback || 'Core i5',
+        processorSecondaryText
+      );
+    });
   }
-  const osBadgeText = splitDiffOsBadgeText(state.os || 'Windows');
-  drawDiffValueBadge(osBadgeX, badgeY, badgeW, badgeH, osColorA, osColorB, 'OS', osBadgeText.main || 'Windows', osBadgeText.detail);
-  registerDraggableRegion('diffBottomBadges', startX, badgeY, totalBadgeWidth, badgeH);
+
+  if (state.sectionEnabled.ram !== false) {
+    visibleBadgeDrawers.push((x) => {
+      drawDiffValueBadge(
+        x,
+        badgeY,
+        badgeW,
+        badgeH,
+        ramColorA,
+        ramColorB,
+        'RAM',
+        state.ram || '8 GB',
+        (state.ramType || '').toUpperCase()
+      );
+    });
+  }
+
+  if (state.sectionEnabled.storage !== false) {
+    visibleBadgeDrawers.push((x) => {
+      drawDiffStorageBadge(
+        x,
+        badgeY,
+        badgeW,
+        badgeH,
+        storageColorA,
+        storageColorB,
+        (state.storageType || 'SSD').toUpperCase(),
+        localizeStorageValue(state.storageSize || '256 GB')
+      );
+    });
+    if (extraStorageEnabled) {
+      visibleBadgeDrawers.push((x) => {
+        drawDiffStorageBadge(
+          x,
+          badgeY,
+          badgeW,
+          badgeH,
+          extraStorageColorA,
+          extraStorageColorB,
+          (state.diffExtraStorageType || 'HDD').toUpperCase(),
+          localizeStorageValue(state.diffExtraStorageSize || '1 TB')
+        );
+      });
+    }
+  }
+
+  if (state.sectionEnabled.os !== false) {
+    visibleBadgeDrawers.push((x) => {
+      const osBadgeText = splitDiffOsBadgeText(state.os || 'Windows');
+      drawDiffValueBadge(
+        x,
+        badgeY,
+        badgeW,
+        badgeH,
+        osColorA,
+        osColorB,
+        'OS',
+        osBadgeText.main || 'Windows',
+        osBadgeText.detail
+      );
+    });
+  }
+
+  if (visibleBadgeDrawers.length > 0) {
+    const totalBadgeWidth = (badgeW * visibleBadgeDrawers.length) + (gap * (visibleBadgeDrawers.length - 1));
+    const startX = cardX + Math.round((cardW - totalBadgeWidth) / 2) + bottomOffset.x;
+    visibleBadgeDrawers.forEach((drawBadge, index) => {
+      drawBadge(startX + (index * (badgeW + gap)));
+    });
+    registerDraggableRegion('diffBottomBadges', startX, badgeY, totalBadgeWidth, badgeH);
+  }
+
+  drawPriceBadge(cardX, cardY, cardW, cardH, theme);
 }
 
 function drawCustomTextLayers() {
@@ -6622,6 +7140,7 @@ function drawPoster() {
   removableElements = [];
   removeButtonRects = [];
   deviceImageHandles = [];
+  priceBadgeBodyRect = null;
   storageBadgeResizeHandleRect = null;
   storageBadgeBodyRect = null;
   osBadgeResizeHandleRect = null;
@@ -7330,20 +7849,21 @@ function setUiLanguage() {
   document.documentElement.lang = state.lang;
   document.body.classList.toggle('dark-theme', state.uiTheme === 'dark');
   document.getElementById('appTitle').textContent = t().appTitle;
-  const tabDevice = document.getElementById('tabDevice');
   const tabCharger = document.getElementById('tabCharger');
   const tabDiffFormat = document.getElementById('tabDiffFormat');
-  if (tabDevice && tabCharger && tabDiffFormat) {
-    tabDevice.textContent = t().labels.generatorDevice;
+  if (tabCharger && tabDiffFormat) {
     tabCharger.textContent = t().labels.generatorCharger;
     tabDiffFormat.textContent = t().labels.generatorDiff;
-    tabDevice.classList.toggle('active', state.generator === 'device');
     tabCharger.classList.toggle('active', state.generator === 'charger');
     tabDiffFormat.classList.toggle('active', state.generator === 'diff');
   }
   if (!isGenerating) {
     document.getElementById('btnGeneratePng').textContent = t().generatePng;
     document.getElementById('btnGenerateJpg').textContent = t().generateJpg;
+    const saveLayoutBtn = document.getElementById('btnSaveLayout');
+    if (saveLayoutBtn) {
+      saveLayoutBtn.textContent = t().saveLayout;
+    }
   }
   if (!isGenerating) {
     statusText.textContent = exportDesignSession
@@ -7539,6 +8059,7 @@ canvas.addEventListener('mousedown', (event) => {
   const logoBadgeHandleHit = pointInRect(p, logoBadgeResizeHandleRect);
   const logoBadgeHit = pointInRect(p, logoBadgeBodyRect);
   const logoBodyHit = pointInRect(p, logoImageBodyRect);
+  const priceBadgeHit = pointInRect(p, priceBadgeBodyRect);
   const storageBadgeHandleHit = pointInRect(p, storageBadgeResizeHandleRect);
   const storageBadgeHit = pointInRect(p, storageBadgeBodyRect);
   const osBadgeHandleHit = pointInRect(p, osBadgeResizeHandleRect);
@@ -7553,8 +8074,40 @@ canvas.addEventListener('mousedown', (event) => {
   const stackBadgeHit = findTopStackBadgeBody(p);
   const draggableHit = findTopDraggableRegion(p);
   const handleHit = findTopDeviceImageHandle(p);
+  if (priceBadgeHit) {
+    const selectionSnapshotBefore = getCanvasSelectionSnapshot();
+    const hadSelectedDeviceImage = !!getSelectedInteractiveImageId();
+    if (hadSelectedDeviceImage) {
+      setSelectedInteractiveImageId(null);
+    }
+    isDefaultDeviceImageSelected = false;
+    applyExclusiveCanvasSelection({
+      type: 'price',
+      dragKey: state.generator === 'diff' ? 'diffPrice' : 'price',
+    });
+    const selectionSnapshotAfter = getCanvasSelectionSnapshot();
+    if (hadSelectedDeviceImage) {
+      renderControls();
+    }
+    if (selectionSnapshotBefore !== selectionSnapshotAfter) {
+      drawPoster();
+    }
+    const current = getLayoutOffset(state.generator === 'diff' ? 'diffPrice' : 'price');
+    activeDrag = {
+      key: state.generator === 'diff' ? 'diffPrice' : 'price',
+      startX: p.x,
+      startY: p.y,
+      baseX: current.x,
+      baseY: current.y,
+    };
+    canvas.style.cursor = 'grabbing';
+    event.preventDefault();
+    return;
+  }
   if (handleHit) {
     if (isDefaultDeviceImageId(handleHit.id)) {
+      clearExclusiveCanvasSelections();
+      setSelectedInteractiveImageId(null);
       const currentSize = getDefaultDeviceImageSize(handleHit.id);
       isDefaultDeviceImageSelected = true;
       isResizingDeviceImage = true;
@@ -7573,6 +8126,8 @@ canvas.addEventListener('mousedown', (event) => {
     }
     const layer = getCurrentInteractiveImages().find((img) => img.id === handleHit.id);
     if (layer) {
+      clearExclusiveCanvasSelections();
+      isDefaultDeviceImageSelected = false;
       setSelectedInteractiveImageId(layer.id);
       renderControls();
       isResizingDeviceImage = true;
@@ -7585,6 +8140,7 @@ canvas.addEventListener('mousedown', (event) => {
         ratio: layer.w / Math.max(1, layer.h),
       };
       canvas.style.cursor = 'nwse-resize';
+      drawPoster();
       event.preventDefault();
       return;
     }
@@ -7593,6 +8149,8 @@ canvas.addEventListener('mousedown', (event) => {
   const imageHit = findTopDeviceImageBody(p);
   if (imageHit) {
     if (isDefaultDeviceImageId(imageHit.id)) {
+      clearExclusiveCanvasSelections();
+      setSelectedInteractiveImageId(null);
       isDefaultDeviceImageSelected = true;
       const deviceDragKey = state.generator === 'diff' ? 'diffDevice' : 'device';
       const current = getLayoutOffset(deviceDragKey);
@@ -7610,6 +8168,8 @@ canvas.addEventListener('mousedown', (event) => {
     }
     const layer = getCurrentInteractiveImages().find((img) => img.id === imageHit.id);
     if (layer) {
+      clearExclusiveCanvasSelections();
+      isDefaultDeviceImageSelected = false;
       setSelectedInteractiveImageId(layer.id);
       renderControls();
       isDraggingDeviceImage = true;
@@ -7623,74 +8183,45 @@ canvas.addEventListener('mousedown', (event) => {
     }
   }
 
+  const selectionSnapshotBefore = getCanvasSelectionSnapshot();
   const hadSelectedDeviceImage = !!getSelectedInteractiveImageId();
   const hadDefaultDeviceImageSelected = isDefaultDeviceImageSelected;
   const keepDefaultDeviceImageSelected = isDefaultDeviceImageId(handleHit?.id)
     || isDefaultDeviceImageId(imageHit?.id)
     || draggableHit?.key === 'device'
     || draggableHit?.key === 'diffDevice';
-  const keepLogoSelected = logoHandleHit || logoBadgeHandleHit || logoBodyHit || logoBadgeHit || draggableHit?.key === 'logo';
-  const shouldUnselectLogo = isLogoSelected && !keepLogoSelected;
-  const shouldSelectLogo = !isLogoSelected && (logoBodyHit || logoHandleHit || logoBadgeHandleHit || logoBadgeHit);
-  const keepStorageSelected = storageBadgeHandleHit || storageBadgeHit || draggableHit?.key === 'storage';
-  const shouldUnselectStorage = isStorageBadgeSelected && !keepStorageSelected;
-  const shouldSelectStorage = !isStorageBadgeSelected && (storageBadgeHit || storageBadgeHandleHit);
-  const keepOsSelected = osBadgeHandleHit || osBadgeHit || draggableHit?.key === 'os';
-  const shouldUnselectOs = isOsBadgeSelected && !keepOsSelected;
-  const shouldSelectOs = !isOsBadgeSelected && (osBadgeHit || osBadgeHandleHit);
-  const keepGuaranteeSelected = guaranteeBadgeHandleHit || guaranteeBadgeHit || draggableHit?.key === 'guarantee' || draggableHit?.key === 'diffWarranty';
-  const shouldUnselectGuarantee = isGuaranteeBadgeSelected && !keepGuaranteeSelected;
-  const shouldSelectGuarantee = !isGuaranteeBadgeSelected && (guaranteeBadgeHit || guaranteeBadgeHandleHit);
-  const keepPointsTextSelected = pointsTextHandleHit || pointsTextHit || draggableHit?.key === 'diffPointsText';
-  const shouldUnselectPointsText = isPointsTextSelected && !keepPointsTextSelected;
-  const shouldSelectPointsText = !isPointsTextSelected && (pointsTextHit || pointsTextHandleHit);
-  const keepReconditionedSelected = reconditionedHandleHit || reconditionedHit || draggableHit?.key === 'diffReconditioned';
-  const shouldUnselectReconditioned = isReconditionedSelected && !keepReconditionedSelected;
-  const shouldSelectReconditioned = !isReconditionedSelected && (reconditionedHit || reconditionedHandleHit);
-  const shouldSelectStackBadge = !!(stackBadgeHit || stackBadgeHandleHit);
-  const shouldUnselectStackBadge = selectedStackBadgeKey && !shouldSelectStackBadge && draggableHit?.key !== 'tags';
+  const preferredCanvasTarget = resolvePreferredCanvasElementTarget({
+    logoHandleHit,
+    logoBadgeHandleHit,
+    logoBadgeHit,
+    logoBodyHit,
+    priceBadgeHit,
+    storageBadgeHandleHit,
+    storageBadgeHit,
+    osBadgeHandleHit,
+    osBadgeHit,
+    guaranteeBadgeHandleHit,
+    guaranteeBadgeHit,
+    pointsTextHandleHit,
+    pointsTextHit,
+    reconditionedHandleHit,
+    reconditionedHit,
+    stackBadgeHandleHit,
+    stackBadgeHit,
+  });
   if (hadSelectedDeviceImage) {
     setSelectedInteractiveImageId(null);
   }
   if (hadDefaultDeviceImageSelected && !keepDefaultDeviceImageSelected) {
     isDefaultDeviceImageSelected = false;
   }
-  if (shouldUnselectLogo) {
-    isLogoSelected = false;
-  } else if (shouldSelectLogo) {
-    isLogoSelected = true;
+  if (preferredCanvasTarget) {
+    applyExclusiveCanvasSelection(preferredCanvasTarget);
+  } else {
+    clearExclusiveCanvasSelections();
   }
-  if (shouldUnselectStorage) {
-    isStorageBadgeSelected = false;
-  } else if (shouldSelectStorage) {
-    isStorageBadgeSelected = true;
-  }
-  if (shouldUnselectOs) {
-    isOsBadgeSelected = false;
-  } else if (shouldSelectOs) {
-    isOsBadgeSelected = true;
-  }
-  if (shouldUnselectGuarantee) {
-    isGuaranteeBadgeSelected = false;
-  } else if (shouldSelectGuarantee) {
-    isGuaranteeBadgeSelected = true;
-  }
-  if (shouldUnselectPointsText) {
-    isPointsTextSelected = false;
-  } else if (shouldSelectPointsText) {
-    isPointsTextSelected = true;
-  }
-  if (shouldUnselectReconditioned) {
-    isReconditionedSelected = false;
-  } else if (shouldSelectReconditioned) {
-    isReconditionedSelected = true;
-  }
-  if (shouldSelectStackBadge) {
-    selectedStackBadgeKey = (stackBadgeHandleHit || stackBadgeHit).key;
-  } else if (shouldUnselectStackBadge) {
-    selectedStackBadgeKey = null;
-  }
-  if (hadSelectedDeviceImage || (hadDefaultDeviceImageSelected && !keepDefaultDeviceImageSelected) || shouldUnselectLogo || shouldSelectLogo || shouldUnselectStorage || shouldSelectStorage || shouldUnselectOs || shouldSelectOs || shouldUnselectGuarantee || shouldSelectGuarantee || shouldUnselectPointsText || shouldSelectPointsText || shouldUnselectReconditioned || shouldSelectReconditioned || shouldSelectStackBadge || shouldUnselectStackBadge) {
+  const selectionSnapshotAfter = getCanvasSelectionSnapshot();
+  if (selectionSnapshotBefore !== selectionSnapshotAfter) {
     drawPoster();
   }
 
@@ -7801,7 +8332,9 @@ canvas.addEventListener('mousedown', (event) => {
       event.preventDefault();
       return;
     }
-    const hit = draggableHit;
+    const hit = preferredCanvasTarget?.dragKey
+      ? { key: preferredCanvasTarget.dragKey }
+      : draggableHit;
     if (!hit) {
       return;
     }
@@ -7842,7 +8375,9 @@ canvas.addEventListener('mousedown', (event) => {
     event.preventDefault();
     return;
   }
-  const hit = draggableHit;
+  const hit = preferredCanvasTarget?.dragKey
+    ? { key: preferredCanvasTarget.dragKey }
+    : draggableHit;
   if (!hit) {
     return;
   }
@@ -8042,6 +8577,10 @@ canvas.addEventListener('mousemove', (event) => {
     canvas.style.cursor = 'nwse-resize';
     return;
   }
+  if (pointInRect(p, priceBadgeBodyRect)) {
+    canvas.style.cursor = 'move';
+    return;
+  }
   if (findTopStackBadgeHandle(p)) {
     canvas.style.cursor = 'nwse-resize';
     return;
@@ -8192,6 +8731,10 @@ document.addEventListener('mousedown', (event) => {
     isStorageBadgeSelected = false;
     shouldRedraw = true;
   }
+  if (event.target !== canvas && isPriceBadgeSelected) {
+    isPriceBadgeSelected = false;
+    shouldRedraw = true;
+  }
   if (event.target !== canvas && isOsBadgeSelected) {
     isOsBadgeSelected = false;
     shouldRedraw = true;
@@ -8281,19 +8824,9 @@ if (themeLightBtn && themeDarkBtn) {
   });
 }
 
-const tabDevice = document.getElementById('tabDevice');
 const tabCharger = document.getElementById('tabCharger');
 const tabDiffFormat = document.getElementById('tabDiffFormat');
-if (tabDevice && tabCharger && tabDiffFormat) {
-  tabDevice.addEventListener('click', () => {
-    if (state.generator === 'device') {
-      return;
-    }
-    state.generator = 'device';
-    setUiLanguage();
-    renderControls();
-    drawPoster();
-  });
+if (tabCharger && tabDiffFormat) {
   tabCharger.addEventListener('click', () => {
     if (state.generator === 'charger') {
       return;
@@ -8348,6 +8881,10 @@ document.getElementById('btnGenerateJpg').addEventListener('click', () => {
   }
   openExportDialog('jpg');
 });
+document.getElementById('btnSaveLayout')?.addEventListener('click', () => {
+  const saved = persistSavedDefaultLayout();
+  statusText.textContent = saved ? t().statusLayoutSaved : t().statusLayoutSaveFailed;
+});
 
 if (exportDialog) {
   exportDialog.querySelectorAll('input[name="exportMode"]').forEach((input) => {
@@ -8387,6 +8924,7 @@ btnDesignExport?.addEventListener('click', () => {
 });
 
 resetLayoutToDefault();
+applySavedDefaultLayout(readSavedDefaultLayout());
 populateResolutionOptions();
 updateCanvasViewport();
 setUiLanguage();
