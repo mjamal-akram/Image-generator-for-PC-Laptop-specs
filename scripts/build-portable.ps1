@@ -7,19 +7,27 @@ if (-not (Test-Path $electronDist)) {
   throw "Electron runtime not found at '$electronDist'. Run 'npm install' first."
 }
 
-$appName = 'Jam_iw Software'
-$portableFolderName = 'test build'
+$appName = 'Image generator'
+$portableFolderName = 'Image generator'
 $exeName = "$appName.exe"
 $portableRoot = Join-Path $projectRoot $portableFolderName
+$rarPath = Join-Path $projectRoot "$portableFolderName.rar"
 $zipPath = Join-Path $projectRoot "$portableFolderName.zip"
 $resourcesApp = Join-Path $portableRoot 'resources\\app'
 
-if (Test-Path $portableRoot) {
-  Remove-Item -LiteralPath $portableRoot -Recurse -Force
-}
+$legacyArtifacts = @(
+  (Join-Path $projectRoot 'test build'),
+  (Join-Path $projectRoot 'test build.zip'),
+  (Join-Path $projectRoot 'test build.rar'),
+  $portableRoot,
+  $rarPath,
+  $zipPath
+)
 
-if (Test-Path $zipPath) {
-  Remove-Item -LiteralPath $zipPath -Force
+foreach ($artifact in $legacyArtifacts) {
+  if (Test-Path $artifact) {
+    Remove-Item -LiteralPath $artifact -Recurse -Force
+  }
 }
 
 New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null
@@ -73,9 +81,27 @@ Notes:
 "@
 Set-Content -LiteralPath (Join-Path $portableRoot 'README.txt') -Value $readme -Encoding ASCII
 
-Compress-Archive -Path $portableRoot -DestinationPath $zipPath -Force
+$winRarCandidates = @(
+  'C:\\Program Files\\WinRAR\\Rar.exe',
+  'C:\\Program Files (x86)\\WinRAR\\Rar.exe'
+)
+
+$winRarExe = $winRarCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+if ($winRarExe) {
+  & $winRarExe a -r -ep1 $rarPath $portableRoot | Out-Null
+}
+else {
+  Compress-Archive -Path $portableRoot -DestinationPath $zipPath -Force
+}
 
 Write-Host "Portable folder created:"
 Write-Host "  $portableRoot"
-Write-Host "Shareable zip created:"
-Write-Host "  $zipPath"
+if ($winRarExe) {
+  Write-Host "Shareable WinRAR archive created:"
+  Write-Host "  $rarPath"
+}
+else {
+  Write-Host "Shareable zip created:"
+  Write-Host "  $zipPath"
+}

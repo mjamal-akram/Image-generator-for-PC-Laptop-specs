@@ -1,0 +1,78 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PC/Laptop Poster Builder</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="title-tabs">
+        <h1 id="appTitle">PC/Laptop Poster Builder</h1>
+        <div class="generator-tabs" id="generatorTabs">
+          <button id="tabDiffFormat" class="tab-btn active" type="button">Generator</button>
+          <button id="tabCharger" class="tab-btn" type="button">Charger</button>
+        </div>
+      </div>
+      <div class="topbar-controls">
+        <div class="theme-group">
+          <button id="themeLightBtn" class="theme-btn active" type="button" aria-label="Light Theme" title="Light Theme">☀</button>
+          <button id="themeDarkBtn" class="theme-btn" type="button" aria-label="Dark Theme" title="Dark Theme">🌙</button>
+        </div>
+        <div class="lang-group">
+        <button class="lang-btn active" data-lang="en" title="English" aria-label="English">🇺🇸</button>
+        <button class="lang-btn" data-lang="fr" title="Francais" aria-label="Francais">🇫🇷</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-grid">
+      <section class="preview-panel">
+        <canvas id="posterCanvas" width="1080" height="1080"></canvas>
+        <div class="preview-actions">
+          <button id="btnGeneratePng" class="primary">Generate PNG</button>
+          <button id="btnGenerateJpg">Generate JPG</button>
+          <button id="btnSaveLayout" type="button">Save Layout</button>
+        </div>
+        <div id="designModeBar" class="design-mode-bar hidden">
+          <p id="designModeText" class="design-mode-text"></p>
+          <div class="design-mode-actions">
+            <button id="btnDesignExport" class="primary" type="button">Export</button>
+            <button id="btnDesignCancel" type="button">Cancel</button>
+          </div>
+        </div>
+        <p id="statusText" class="status"></p>
+      </section>
+
+      <section class="controls-panel" id="controlsPanel"></section>
+    </main>
+
+    <dialog id="exportDialog" class="ratio-dialog">
+      <form method="dialog">
+        <h3 id="exportDialogTitle">Export Image</h3>
+        <p id="exportDialogHint">Choose whether to save the current design or prepare a wallpaper resolution first.</p>
+        <div class="ratio-options">
+          <label class="ratio-choice">
+            <input type="radio" name="exportMode" value="same" checked />
+            <span id="exportSameLabel">Use current design size</span>
+          </label>
+          <label class="ratio-choice">
+            <input type="radio" name="exportMode" value="wallpaper" />
+            <span id="exportWallpaperLabel">Design in a wallpaper resolution first</span>
+          </label>
+        </div>
+        <div id="resolutionGroup" class="input-group hidden">
+          <label for="resolutionSelect" id="resolutionLabel">Wallpaper Resolution</label>
+          <select id="resolutionSelect"></select>
+        </div>
+        <div class="dialog-actions">
+          <button id="btnExportDialogCancel" type="button">Cancel</button>
+          <button id="btnExportDialogConfirm" class="primary" type="button">Continue</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
