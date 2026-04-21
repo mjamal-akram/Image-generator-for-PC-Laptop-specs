@@ -545,6 +545,7 @@ const state = {
   chargerCompatibility: 'Dell Latitude 5490',
   price: '',
   oldPrice: '',
+  priceRotation: 0,
   diffOldPrice: '',
   diffModelTitle: 'LATITUDE 5400',
   diffModelFontSize: 62,
@@ -810,6 +811,7 @@ const i18n = {
       clearUploadedReconditioned: 'Use Default PC Reconditionne',
       reconditionedRotation: 'Rotation',
       reconditionedHint: 'Upload your own PC reconditionne design. Drag on the preview to move it, drag the corner to resize it, and use the slider to rotate it.',
+      priceTagRotation: 'Rotation',
       showIntelBadge: 'Processor Badge',
       showScreenBadge: 'Screen Badge',
       showBatteryBadge: 'Battery Badge',
@@ -1082,6 +1084,7 @@ const i18n = {
       clearUploadedReconditioned: 'Utiliser PC Reconditionne Par Defaut',
       reconditionedRotation: 'Rotation',
       reconditionedHint: 'Importez votre propre design PC reconditionne. Glissez dans lapercu pour le deplacer, glissez le coin pour le redimensionner et utilisez le curseur pour le faire pivoter.',
+      priceTagRotation: 'Rotation',
       showIntelBadge: 'Badge Processeur',
       showScreenBadge: 'Badge Ecran',
       showBatteryBadge: 'Badge Batterie',
@@ -1682,6 +1685,7 @@ function snapshotForUndo() {
     guaranteePeriod: state.guaranteePeriod,
     chargerImageDataUrl: state.chargerImageDataUrl,
     logoImageDataUrl: state.logoImageDataUrl,
+    priceRotation: Number(state.priceRotation) || 0,
     diffPointsTextUploadDataUrl: state.diffPointsTextUploadDataUrl,
     diffPointsTextRotation: state.diffPointsTextRotation,
     diffPointsTextSize: JSON.parse(JSON.stringify(state.diffPointsTextSize || DEFAULT_DIFF_POINTS_TEXT_SIZE)),
@@ -1732,6 +1736,7 @@ function restoreFromUndoSnapshot(snapshot) {
   state.chargerTitle = snapshot.chargerTitle ?? state.chargerTitle;
   state.guaranteeText = snapshot.guaranteeText ?? state.guaranteeText;
   state.guaranteePeriod = snapshot.guaranteePeriod ?? state.guaranteePeriod;
+  state.priceRotation = snapshot.priceRotation ?? state.priceRotation;
   state.diffPointsTextUploadDataUrl = snapshot.diffPointsTextUploadDataUrl ?? state.diffPointsTextUploadDataUrl;
   state.diffPointsTextRotation = snapshot.diffPointsTextRotation ?? state.diffPointsTextRotation;
   state.diffPointsTextSize = JSON.parse(JSON.stringify(snapshot.diffPointsTextSize || state.diffPointsTextSize || DEFAULT_DIFF_POINTS_TEXT_SIZE));
@@ -3266,6 +3271,37 @@ function buildPriceSection() {
     drawPoster();
   });
   wrap.appendChild(colorInput);
+
+  const rotationLabel = document.createElement('label');
+  rotationLabel.textContent = t().labels.priceTagRotation || 'Rotation';
+  wrap.appendChild(rotationLabel);
+
+  const rotationWrap = document.createElement('div');
+  rotationWrap.style.display = 'flex';
+  rotationWrap.style.alignItems = 'center';
+  rotationWrap.style.gap = '10px';
+
+  const rotationInput = document.createElement('input');
+  rotationInput.type = 'range';
+  rotationInput.min = '-180';
+  rotationInput.max = '180';
+  rotationInput.step = '1';
+  rotationInput.value = String(Number(state.priceRotation) || 0);
+  rotationInput.style.flex = '1';
+
+  const rotationValue = document.createElement('div');
+  rotationValue.textContent = `${Number(state.priceRotation) || 0}deg`;
+  rotationValue.style.minWidth = '58px';
+
+  rotationInput.addEventListener('input', (e) => {
+    state.priceRotation = Number(e.target.value) || 0;
+    rotationValue.textContent = `${state.priceRotation}deg`;
+    drawPoster();
+  });
+
+  rotationWrap.appendChild(rotationInput);
+  rotationWrap.appendChild(rotationValue);
+  wrap.appendChild(rotationWrap);
 
   section.appendChild(wrap);
   return section;
@@ -5709,12 +5745,12 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
     oldPriceText,
     oldPriceHeight,
   } = priceRect;
-  priceBadgeBodyRect = { x: badgeX, y: badgeY, w: badgeW, h: badgeH + oldPriceHeight };
   const display = splitPriceDisplay(state.price);
   const amount = splitPriceNumberParts(display.value);
   const badgeColor = isHexColor(theme.priceBox) ? theme.priceBox : '#ff2128';
   const textColor = isHexColor(theme.priceText) ? theme.priceText : '#ffffff';
   const hasCustomTagImage = !!(generatorPriceTagImageObj && generatorPriceTagImageObj.complete);
+  const rotationDeg = Number(state.priceRotation) || 0;
   const amountParts = {
     prefix: display.prefix,
     whole: amount.whole || display.value,
@@ -5723,12 +5759,22 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
     suffix: display.suffix,
   };
   const titleText = String(t().sections.price || 'Price').toUpperCase();
-  const textAreaX = hasCustomTagImage ? badgeX + Math.round(badgeW * 0.18) : badgeX;
+  const badgeGroupW = badgeW;
+  const badgeGroupH = badgeH + oldPriceHeight;
+  const badgeCenterX = badgeX + (badgeGroupW / 2);
+  const badgeCenterY = badgeY + (badgeGroupH / 2);
+  const badgeLeft = -badgeGroupW / 2;
+  const badgeTop = -badgeGroupH / 2;
+  const textAreaX = hasCustomTagImage ? badgeLeft + Math.round(badgeW * 0.18) : badgeLeft;
   const textAreaW = hasCustomTagImage ? Math.round(badgeW * 0.74) : badgeW;
   const titleSize = fitText(titleText, textAreaW - 28, '800', 18, 10, 'Segoe UI');
   const { mainSize, fractionalSize } = fitPriceTagAmountSize(amountParts, textAreaW - 20, 62, 25);
+  const rotatedBounds = getRotatedBounds(badgeCenterX, badgeCenterY, badgeGroupW, badgeGroupH, rotationDeg);
+  priceBadgeBodyRect = rotatedBounds;
 
   ctx.save();
+  ctx.translate(badgeCenterX, badgeCenterY);
+  ctx.rotate((rotationDeg * Math.PI) / 180);
   if (hasCustomTagImage) {
     ctx.drawImage(
       generatorPriceTagImageObj,
@@ -5736,21 +5782,21 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
       GENERATOR_PRICE_TAG_CROP.y,
       GENERATOR_PRICE_TAG_CROP.w,
       GENERATOR_PRICE_TAG_CROP.h,
-      badgeX,
-      badgeY,
+      badgeLeft,
+      badgeTop,
       badgeW,
       badgeH
     );
   } else {
-    const badgeGradient = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeW, badgeY + badgeH);
+    const badgeGradient = ctx.createLinearGradient(badgeLeft, badgeTop, badgeLeft + badgeW, badgeTop + badgeH);
     badgeGradient.addColorStop(0, shadeHexColor(badgeColor, 0.18));
     badgeGradient.addColorStop(1, shadeHexColor(badgeColor, -0.1));
-    drawRoundedRect(badgeX, badgeY, badgeW, badgeH, 18, badgeGradient);
+    drawRoundedRect(badgeLeft, badgeTop, badgeW, badgeH, 18, badgeGradient);
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
     ctx.beginPath();
-    ctx.moveTo(badgeX + badgeW * 0.58, badgeY);
-    ctx.lineTo(badgeX + badgeW, badgeY);
-    ctx.lineTo(badgeX + badgeW, badgeY + badgeH * 0.42);
+    ctx.moveTo(badgeLeft + badgeW * 0.58, badgeTop);
+    ctx.lineTo(badgeLeft + badgeW, badgeTop);
+    ctx.lineTo(badgeLeft + badgeW, badgeTop + badgeH * 0.42);
     ctx.closePath();
     ctx.fill();
   }
@@ -5759,18 +5805,18 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = 'rgba(255,255,255,0.94)';
   ctx.font = `800 ${titleSize}px Segoe UI`;
-  ctx.fillText(titleText, textAreaX + (textAreaW / 2), badgeY + (hasCustomTagImage ? 29 : 21));
+  ctx.fillText(titleText, textAreaX + (textAreaW / 2), badgeTop + (hasCustomTagImage ? 29 : 21));
 
   ctx.strokeStyle = 'rgba(255,255,255,0.28)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(textAreaX + 16, badgeY + (hasCustomTagImage ? 38 : 30));
-  ctx.lineTo(textAreaX + textAreaW - 16, badgeY + (hasCustomTagImage ? 38 : 30));
+  ctx.moveTo(textAreaX + 16, badgeTop + (hasCustomTagImage ? 38 : 30));
+  ctx.lineTo(textAreaX + textAreaW - 16, badgeTop + (hasCustomTagImage ? 38 : 30));
   ctx.stroke();
 
   const totalWidth = measurePriceTagAmount(amountParts, mainSize, fractionalSize);
   const amountStartX = textAreaX + Math.round((textAreaW - totalWidth) / 2);
-  const amountBaselineY = badgeY + Math.round(badgeH * (hasCustomTagImage ? 0.77 : 0.82));
+  const amountBaselineY = badgeTop + Math.round(badgeH * (hasCustomTagImage ? 0.77 : 0.82));
   const fractionalText = amountParts.hasDecimal ? `.${amountParts.fractional}` : '';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -5801,10 +5847,10 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
 
   if (oldPriceText) {
     const oldSize = fitText(oldPriceText, badgeW - 22, '700', 26, 12, 'Segoe UI');
-    const oldY = badgeY + badgeH + 24;
+    const oldY = badgeTop + badgeH + 24;
     ctx.font = `700 ${oldSize}px Segoe UI`;
     const textWidth = ctx.measureText(oldPriceText).width;
-    const oldCenterX = hasCustomTagImage ? textAreaX + (textAreaW / 2) : badgeX + (badgeW / 2);
+    const oldCenterX = hasCustomTagImage ? textAreaX + (textAreaW / 2) : badgeLeft + (badgeW / 2);
     const oldX = Math.round(oldCenterX - (textWidth / 2));
     ctx.fillStyle = '#3f4048';
     ctx.fillText(oldPriceText, oldX, oldY);
@@ -5817,8 +5863,23 @@ function drawPriceBadge(cardX, cardY, cardW, cardH, theme) {
   }
   ctx.restore();
 
-  registerDraggableRegion(state.generator === 'diff' ? 'diffPrice' : 'price', badgeX, badgeY, badgeW, badgeH + oldPriceHeight);
-  registerRemovableElement(badgeX, badgeY, badgeW, badgeH + oldPriceHeight, () => {
+  if (isPriceBadgeSelected) {
+    ctx.save();
+    ctx.strokeStyle = '#2c8eff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(rotatedBounds.x, rotatedBounds.y, rotatedBounds.w, rotatedBounds.h);
+    ctx.restore();
+  }
+
+  registerDraggableRegion(
+    state.generator === 'diff' ? 'diffPrice' : 'price',
+    rotatedBounds.x,
+    rotatedBounds.y,
+    rotatedBounds.w,
+    rotatedBounds.h
+  );
+  registerRemovableElement(rotatedBounds.x, rotatedBounds.y, rotatedBounds.w, rotatedBounds.h, () => {
     state.sectionEnabled.price = false;
   });
 }

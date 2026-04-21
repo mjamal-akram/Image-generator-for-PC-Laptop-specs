@@ -11,8 +11,10 @@ $appName = 'Image generator'
 $portableFolderName = 'Image generator'
 $exeName = "$appName.exe"
 $portableRoot = Join-Path $projectRoot $portableFolderName
-$rarPath = Join-Path $projectRoot "$portableFolderName.rar"
-$zipPath = Join-Path $projectRoot "$portableFolderName.zip"
+$rootRarPath = Join-Path $projectRoot "$portableFolderName.rar"
+$rootZipPath = Join-Path $projectRoot "$portableFolderName.zip"
+$rarPath = Join-Path $portableRoot "$portableFolderName.rar"
+$zipPath = Join-Path $portableRoot "$portableFolderName.zip"
 $resourcesApp = Join-Path $portableRoot 'resources\\app'
 
 $legacyArtifacts = @(
@@ -20,8 +22,8 @@ $legacyArtifacts = @(
   (Join-Path $projectRoot 'test build.zip'),
   (Join-Path $projectRoot 'test build.rar'),
   $portableRoot,
-  $rarPath,
-  $zipPath
+  $rootRarPath,
+  $rootZipPath
 )
 
 foreach ($artifact in $legacyArtifacts) {
@@ -89,10 +91,12 @@ $winRarCandidates = @(
 $winRarExe = $winRarCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if ($winRarExe) {
-  & $winRarExe a -r -ep1 $rarPath $portableRoot | Out-Null
+  & $winRarExe a -r -ep1 $rootRarPath $portableRoot | Out-Null
+  Move-Item -LiteralPath $rootRarPath -Destination $rarPath -Force
 }
 else {
-  Compress-Archive -Path $portableRoot -DestinationPath $zipPath -Force
+  Compress-Archive -Path $portableRoot -DestinationPath $rootZipPath -Force
+  Move-Item -LiteralPath $rootZipPath -Destination $zipPath -Force
 }
 
 Write-Host "Portable folder created:"
