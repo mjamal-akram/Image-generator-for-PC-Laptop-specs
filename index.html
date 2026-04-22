@@ -13,6 +13,7 @@
         <div class="generator-tabs" id="generatorTabs">
           <button id="tabDiffFormat" class="tab-btn active" type="button">Generator</button>
           <button id="tabCharger" class="tab-btn" type="button">Charger</button>
+          <button id="tabBrands" class="tab-btn" type="button">Brands</button>
         </div>
       </div>
       <div class="topbar-controls">
@@ -34,6 +35,8 @@
           <button id="btnGeneratePng" class="primary">Generate PNG</button>
           <button id="btnGenerateJpg">Generate JPG</button>
           <button id="btnSaveLayout" type="button">Save Layout</button>
+          <button id="btnHigherResolution" type="button">Higher Resolution</button>
+          <select id="higherResolutionSelect" aria-label="Higher Resolution"></select>
         </div>
         <div id="designModeBar" class="design-mode-bar hidden">
           <p id="designModeText" class="design-mode-text"></p>
@@ -51,24 +54,54 @@
     <dialog id="exportDialog" class="ratio-dialog">
       <form method="dialog">
         <h3 id="exportDialogTitle">Export Image</h3>
-        <p id="exportDialogHint">Choose whether to save the current design or prepare a wallpaper resolution first.</p>
+        <p id="exportDialogHint">Choose whether to generate the current image, the saved higher-resolution image, or both.</p>
         <div class="ratio-options">
           <label class="ratio-choice">
-            <input type="radio" name="exportMode" value="same" checked />
-            <span id="exportSameLabel">Use current design size</span>
+            <input type="radio" name="exportMode" value="current" checked />
+            <span id="exportCurrentLabel">Generate current image</span>
           </label>
           <label class="ratio-choice">
-            <input type="radio" name="exportMode" value="wallpaper" />
-            <span id="exportWallpaperLabel">Design in a wallpaper resolution first</span>
+            <input type="radio" name="exportMode" value="higher" />
+            <span id="exportHigherLabel">Generate higher-resolution image</span>
+          </label>
+          <label class="ratio-choice">
+            <input type="radio" name="exportMode" value="both" />
+            <span id="exportBothLabel">Generate both</span>
           </label>
         </div>
         <div id="resolutionGroup" class="input-group hidden">
-          <label for="resolutionSelect" id="resolutionLabel">Wallpaper Resolution</label>
+          <label for="resolutionSelect" id="resolutionLabel">Higher Resolution</label>
           <select id="resolutionSelect"></select>
+        </div>
+        <div id="exportFolderGroup" class="input-group hidden">
+          <label for="exportFolderPath" id="exportFolderLabel">Brand Export Folder</label>
+          <div class="folder-picker-row">
+            <input id="exportFolderPath" type="text" readonly placeholder="Choose export folder" />
+            <button id="btnChooseExportFolder" type="button">Choose Folder</button>
+          </div>
+          <p id="exportFolderHint" class="dialog-hint">Generated images for the selected brand will be saved in that brand folder automatically.</p>
         </div>
         <div class="dialog-actions">
           <button id="btnExportDialogCancel" type="button">Cancel</button>
-          <button id="btnExportDialogConfirm" class="primary" type="button">Continue</button>
+          <button id="btnExportDialogConfirm" class="primary" type="button">Generate</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="brandsDialog" class="brands-dialog">
+      <form method="dialog">
+        <div class="brands-dialog-head">
+          <h3 id="brandsDialogTitle">Brands</h3>
+          <button id="btnBrandsAddToggle" class="brand-add-btn" type="button" aria-label="Add Brand" title="Add Brand">+</button>
+        </div>
+        <div id="brandsAddRow" class="brands-add-row hidden">
+          <input id="brandsNameInput" type="text" placeholder="Brand name" />
+          <button id="btnBrandsConfirmAdd" class="primary" type="button">Add</button>
+        </div>
+        <p id="brandsEmptyText" class="brands-empty-text hidden">No brands added yet.</p>
+        <div id="brandsList" class="brands-list"></div>
+        <div class="dialog-actions">
+          <button id="btnBrandsClose" type="button">Close</button>
         </div>
       </form>
     </dialog>

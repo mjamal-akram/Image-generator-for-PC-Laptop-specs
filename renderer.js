@@ -23,6 +23,9 @@
 
 const LAYOUT_PREFERENCES_STORAGE_KEY = 'jam_iw-layout-preferences-v5';
 const DEFAULT_LAYOUT_STORAGE_KEY = 'jam_iw-default-layout-v1';
+const DEFAULT_EXPORT_VARIANTS_STORAGE_KEY = 'jam_iw-default-export-layouts-v1';
+const BRAND_LIBRARY_STORAGE_KEY = 'jam_iw-brand-library-v1';
+const EXPORT_BASE_FOLDER_STORAGE_KEY = 'jam_iw-export-base-folder-v1';
 const DEFAULT_LOGO_SIZE = 56;
 const DEFAULT_LOGO_BADGE_SIZE = { w: 150, h: 150 };
 const DEFAULT_STORAGE_BADGE_SIZE = { w: 340, h: 108 };
@@ -306,6 +309,236 @@ function persistSavedDefaultLayout() {
   }
 }
 
+function normalizeSavedDesignSnapshot(snapshot) {
+  const canvasWidth = Number(snapshot?.canvasWidth);
+  const canvasHeight = Number(snapshot?.canvasHeight);
+  const posterState = deepCloneJsonValue(snapshot?.posterState);
+  if (!Number.isFinite(canvasWidth) || !Number.isFinite(canvasHeight) || !posterState) {
+    return null;
+  }
+  return {
+    canvasWidth,
+    canvasHeight,
+    posterState,
+  };
+}
+
+function normalizeSavedExportVariants(variants) {
+  const normalized = {};
+  Object.entries(variants || {}).forEach(([key, value]) => {
+    const snapshot = normalizeSavedDesignSnapshot(value);
+    if (snapshot) {
+      normalized[key] = snapshot;
+    }
+  });
+  return normalized;
+}
+
+function readSavedDefaultExportVariants() {
+  try {
+    const raw = window.localStorage?.getItem(DEFAULT_EXPORT_VARIANTS_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    return normalizeSavedExportVariants(parsed?.variants);
+  } catch {
+    return {};
+  }
+}
+
+function persistSavedDefaultExportVariants() {
+  try {
+    window.localStorage?.setItem(
+      DEFAULT_EXPORT_VARIANTS_STORAGE_KEY,
+      JSON.stringify({ variants: defaultExportDesignVariants })
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readExportBaseFolder() {
+  try {
+    return String(window.localStorage?.getItem(EXPORT_BASE_FOLDER_STORAGE_KEY) || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function persistExportBaseFolder(folderPath) {
+  try {
+    const normalizedPath = String(folderPath || '').trim();
+    if (!normalizedPath) {
+      window.localStorage?.removeItem(EXPORT_BASE_FOLDER_STORAGE_KEY);
+      return true;
+    }
+    window.localStorage?.setItem(EXPORT_BASE_FOLDER_STORAGE_KEY, normalizedPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getAllBrandNames() {
+  return brandLibrary
+    .map((entry) => String(entry?.name || '').trim())
+    .filter(Boolean);
+}
+
+async function syncAllBrandFolders(folderPath = exportBaseFolder) {
+  const normalizedPath = String(folderPath || '').trim();
+  if (!normalizedPath) {
+    return { ok: true, skipped: true };
+  }
+  if (!window.desktopApi?.syncBrandFolders) {
+    return { ok: false, error: 'Brand folder sync API unavailable. Restart the app.' };
+  }
+  return window.desktopApi.syncBrandFolders({
+    baseFolderPath: normalizedPath,
+    brandNames: getAllBrandNames(),
+  });
+}
+
+function normalizeBrandEntry(entry) {
+  const name = String(entry?.name || '').trim();
+  if (!name) {
+    return null;
+  }
+  return {
+    name,
+    layout: entry?.layout && typeof entry.layout === 'object' ? entry.layout : null,
+    exportVariants: normalizeSavedExportVariants(entry?.exportVariants),
+  };
+}
+
+function readBrandLibrary() {
+  try {
+    const raw = window.localStorage?.getItem(BRAND_LIBRARY_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    const seen = new Set();
+    return Array.isArray(parsed?.brands)
+      ? parsed.brands
+        .map(normalizeBrandEntry)
+        .filter((entry) => {
+          if (!entry) {
+            return false;
+          }
+          const key = entry.name.toLowerCase();
+          if (seen.has(key)) {
+            return false;
+          }
+          seen.add(key);
+          return true;
+        })
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistBrandLibrary() {
+  try {
+    window.localStorage?.setItem(
+      BRAND_LIBRARY_STORAGE_KEY,
+      JSON.stringify({ brands: brandLibrary })
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function findBrandEntry(name) {
+  const normalized = String(name || '').trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  return brandLibrary.find((entry) => entry.name.toLowerCase() === normalized) || null;
+}
+
+function getCurrentWorkspaceExportVariants() {
+  if (activeBrandName) {
+    let entry = findBrandEntry(activeBrandName);
+    if (!entry) {
+      entry = { name: activeBrandName, layout: null, exportVariants: {} };
+      brandLibrary.push(entry);
+    }
+    if (!entry.exportVariants || typeof entry.exportVariants !== 'object') {
+      entry.exportVariants = {};
+    }
+    return entry.exportVariants;
+  }
+  return defaultExportDesignVariants;
+}
+
+function getSavedExportDesignVariant(variantKey) {
+  return deepCloneJsonValue(getCurrentWorkspaceExportVariants()[variantKey]) || null;
+}
+
+function persistCurrentWorkspaceExportVariants() {
+  if (activeBrandName) {
+    const saved = persistBrandLibrary();
+    if (!saved) {
+      brandLibrary = readBrandLibrary();
+    }
+    return saved;
+  }
+  const saved = persistSavedDefaultExportVariants();
+  if (!saved) {
+    defaultExportDesignVariants = readSavedDefaultExportVariants();
+  }
+  return saved;
+}
+
+function getResolutionParts(resolutionValue) {
+  const [width, height] = String(resolutionValue || '').split('x').map((value) => Number(value));
+  return {
+    width: Number.isFinite(width) ? width : 1920,
+    height: Number.isFinite(height) ? height : 1080,
+  };
+}
+
+function getResolutionLabel(resolutionValue) {
+  const matched = WALLPAPER_RESOLUTIONS.find((item) => item.value === resolutionValue);
+  return matched?.label || String(resolutionValue || '1920x1080');
+}
+
+function getSelectedHigherResolutionValue() {
+  return String(higherResolutionSelect?.value || resolutionSelect?.value || WALLPAPER_RESOLUTIONS[0]?.value || '1920x1080');
+}
+
+function formatExportTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join('-') + '_' + [
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join('-');
+}
+
+function getGeneratedFileNameBase(resolutionValue = '', mode = 'current') {
+  const stamp = formatExportTimestamp(new Date());
+  if (mode === 'higher' && resolutionValue) {
+    return `${stamp}_${resolutionValue}`;
+  }
+  if (mode === 'both-current') {
+    return `${stamp}_current`;
+  }
+  if (mode === 'both-higher' && resolutionValue) {
+    return `${stamp}_${resolutionValue}`;
+  }
+  return stamp;
+}
+
 function applySavedDefaultLayout(snapshot) {
   const savedState = snapshot?.state;
   if (!savedState || typeof savedState !== 'object') {
@@ -380,6 +613,18 @@ function applySavedDefaultLayout(snapshot) {
   if (!Object.prototype.hasOwnProperty.call(savedState, 'diffConnectivityLine3')) {
     state.diffConnectivityLine3 = '';
   }
+  if (!Object.prototype.hasOwnProperty.call(savedState, 'diffGpuLine1')) {
+    state.diffGpuLine1 = 'Nvidia';
+  }
+  if (!Object.prototype.hasOwnProperty.call(savedState, 'diffGpuLine2')) {
+    state.diffGpuLine2 = 'GTX 1080';
+  }
+  if (!Object.prototype.hasOwnProperty.call(savedState, 'diffGpuLine3Enabled')) {
+    state.diffGpuLine3Enabled = false;
+  }
+  if (!Object.prototype.hasOwnProperty.call(savedState, 'diffGpuLine3')) {
+    state.diffGpuLine3 = '';
+  }
   state.deviceImages = hydrateSavedLayoutImageGroups(savedState.deviceImages);
   state.chargerImages = hydrateSavedLayoutImageLayers(savedState.chargerImages);
   state.logoSize = Number.isFinite(Number(state.logoSize)) ? Number(state.logoSize) : DEFAULT_LOGO_SIZE;
@@ -433,6 +678,7 @@ function resetLayoutToDefault() {
   state.sectionEnabled.os = true;
   state.sectionEnabled.storage = true;
   state.sectionEnabled.connectivity = true;
+  state.sectionEnabled.gpu = false;
   state.sectionEnabled.processor = true;
   state.sectionEnabled.screen = true;
   state.sectionEnabled.specifications = true;
@@ -477,6 +723,10 @@ const state = {
   diffConnectivityLine2: 'Bluetooth',
   diffConnectivityLine3Enabled: false,
   diffConnectivityLine3: '',
+  diffGpuLine1: 'Nvidia',
+  diffGpuLine2: 'GTX 1080',
+  diffGpuLine3Enabled: false,
+  diffGpuLine3: '',
   diffExtraStorageEnabled: false,
   diffExtraStorageType: 'HDD',
   diffExtraStorageSize: '1 TB',
@@ -485,6 +735,7 @@ const state = {
   diffStorageBadgeColor: '#f2c246',
   diffScreenBadgeColor: '#57b7cf',
   diffConnectivityBadgeColor: '#5b86d8',
+  diffGpuBadgeColor: '#63b746',
   diffExtraStorageBadgeColor: '#8a98ab',
   diffOsBadgeColor: '#1d9be4',
   titleTop: 'ENTER TEXT HERE',
@@ -623,6 +874,7 @@ const state = {
     keyboard: true,
     storage: true,
     connectivity: true,
+    gpu: false,
     brand: true,
     processor: true,
     screen: true,
@@ -643,6 +895,7 @@ const i18n = {
     generatePng: 'Generate PNG',
     generateJpg: 'Generate JPG',
     saveLayout: 'Save Layout',
+    higherResolution: 'Higher Resolution',
     chooseRatio: 'Choose Aspect Ratio',
     ratioHelp: 'Select a ratio before generating the image.',
     cancel: 'Cancel',
@@ -660,6 +913,7 @@ const i18n = {
       reconditioned: 'PC Reconditionne',
       screen: 'Screen',
       connectivity: 'Connectivity',
+      gpu: 'Graphic Card',
       os: 'Operating System',
       ram: 'RAM',
       keyboard: 'Keyboard Backlight',
@@ -679,6 +933,16 @@ const i18n = {
       generatorDevice: 'PC/Laptop',
       generatorCharger: 'Charger',
       generatorDiff: 'Generator',
+      generatorBrands: 'Brands',
+      brandsAdd: 'Add',
+      brandsNamePlaceholder: 'Brand name',
+      brandsEmpty: 'No brands added yet.',
+      brandsClose: 'Close',
+      brandsEdit: 'Edit',
+      brandsDelete: 'Delete',
+      brandsConfirmDelete: 'Confirm',
+      brandsSave: 'Save',
+      brandsCancel: 'Cancel',
       storageType: 'Drive Type',
       storageLine1: 'Storage Line 1',
       storageLine1Hint: 'Example: SSD 480 GB',
@@ -701,6 +965,13 @@ const i18n = {
       connectivityLine3Toggle: 'Add Third Connectivity Line',
       connectivityLine3: 'Connectivity Line 3',
       connectivityLine3Hint: 'Example: 4G',
+      gpuLine1: 'GPU Line 1',
+      gpuLine1Hint: 'Example: Nvidia',
+      gpuLine2: 'GPU Line 2',
+      gpuLine2Hint: 'Example: GTX 1080',
+      gpuLine3Toggle: 'Add Third GPU Line',
+      gpuLine3: 'GPU Line 3',
+      gpuLine3Hint: 'Example: 8 GB',
       titleTop: 'Top Title Text',
       titleTopHint: 'Example: SSD',
       titleBottom: 'Bottom Title Text',
@@ -876,6 +1147,20 @@ const i18n = {
     statusCanceled: 'Export canceled.',
     statusLayoutSaved: 'Default layout saved.',
     statusLayoutSaveFailed: 'Could not save the default layout.',
+    statusBrandAdded: (name) => `Brand added: ${name}`,
+    statusBrandExists: (name) => `Brand already exists: ${name}`,
+    statusBrandNameRequired: 'Enter a brand name.',
+    statusBrandOpened: (name) => `Brand opened: ${name}`,
+    statusBrandLayoutSaved: (name) => `Layout saved for ${name}.`,
+    statusBrandLayoutSaveFailed: (name) => `Could not save the layout for ${name}.`,
+    statusHigherResolutionLayoutSaved: (size) => `Higher-resolution layout saved for ${size}.`,
+    statusHigherResolutionLayoutSaveFailed: (size) => `Could not save the higher-resolution layout for ${size}.`,
+    statusHigherResolutionNeeded: (size) => `Save the higher-resolution layout for ${size} first, then generate it.`,
+    statusChooseExportFolder: 'Choose an export folder first.',
+    statusExportFolderSaved: (path) => `Brand export folder set: ${path}`,
+    statusSavedMultiple: (folder) => `Images saved in: ${folder}`,
+    statusBrandRenamed: (name) => `Brand updated: ${name}`,
+    statusBrandDeleted: (name) => `Brand deleted: ${name}`,
     statusSaved: (path) => `Image saved: ${path}`,
     ratioNames: {
       '1:1': 'Square (1:1)',
@@ -916,6 +1201,7 @@ const i18n = {
     generatePng: 'Generer PNG',
     generateJpg: 'Generer JPG',
     saveLayout: 'Enregistrer La Mise En Page',
+    higherResolution: 'Haute Resolution',
     chooseRatio: 'Choisir Le Format',
     ratioHelp: 'Selectionnez un ratio avant de generer limage.',
     cancel: 'Annuler',
@@ -933,6 +1219,7 @@ const i18n = {
       reconditioned: 'PC Reconditionne',
       screen: 'Ecran',
       connectivity: 'Connectivite',
+      gpu: 'Carte Graphique',
       os: 'Systeme D Exploitation',
       ram: 'RAM',
       keyboard: 'Retroeclairage Clavier',
@@ -952,6 +1239,16 @@ const i18n = {
       generatorDevice: 'PC/Portable',
       generatorCharger: 'Chargeur',
       generatorDiff: 'Generateur',
+      generatorBrands: 'Marques',
+      brandsAdd: 'Ajouter',
+      brandsNamePlaceholder: 'Nom de la marque',
+      brandsEmpty: 'Aucune marque ajoutee pour le moment.',
+      brandsClose: 'Fermer',
+      brandsEdit: 'Modifier',
+      brandsDelete: 'Supprimer',
+      brandsConfirmDelete: 'Confirmer',
+      brandsSave: 'Enregistrer',
+      brandsCancel: 'Annuler',
       storageType: 'Type De Disque',
       storageLine1: 'Ligne Stockage 1',
       storageLine1Hint: 'Exemple: SSD 480 GO',
@@ -974,6 +1271,13 @@ const i18n = {
       connectivityLine3Toggle: 'Ajouter Une 3e Ligne Connectivite',
       connectivityLine3: 'Ligne Connectivite 3',
       connectivityLine3Hint: 'Exemple: 4G',
+      gpuLine1: 'Ligne GPU 1',
+      gpuLine1Hint: 'Exemple: Nvidia',
+      gpuLine2: 'Ligne GPU 2',
+      gpuLine2Hint: 'Exemple: GTX 1080',
+      gpuLine3Toggle: 'Ajouter Une 3e Ligne GPU',
+      gpuLine3: 'Ligne GPU 3',
+      gpuLine3Hint: 'Exemple: 8 GO',
       titleTop: 'Texte Titre Haut',
       titleTopHint: 'Exemple: SSD',
       titleBottom: 'Texte Titre Bas',
@@ -1149,6 +1453,20 @@ const i18n = {
     statusCanceled: 'Export annule.',
     statusLayoutSaved: 'Mise en page par defaut enregistree.',
     statusLayoutSaveFailed: 'Impossible denregistrer la mise en page par defaut.',
+    statusBrandAdded: (name) => `Marque ajoutee : ${name}`,
+    statusBrandExists: (name) => `La marque existe deja : ${name}`,
+    statusBrandNameRequired: 'Saisissez un nom de marque.',
+    statusBrandOpened: (name) => `Marque ouverte : ${name}`,
+    statusBrandLayoutSaved: (name) => `Mise en page enregistree pour ${name}.`,
+    statusBrandLayoutSaveFailed: (name) => `Impossible denregistrer la mise en page pour ${name}.`,
+    statusHigherResolutionLayoutSaved: (size) => `Mise en page haute resolution enregistree pour ${size}.`,
+    statusHigherResolutionLayoutSaveFailed: (size) => `Impossible denregistrer la mise en page haute resolution pour ${size}.`,
+    statusHigherResolutionNeeded: (size) => `Enregistrez dabord la mise en page haute resolution pour ${size}, puis lancez la generation.`,
+    statusChooseExportFolder: 'Choisissez dabord un dossier dexport.',
+    statusExportFolderSaved: (path) => `Dossier export marque defini : ${path}`,
+    statusSavedMultiple: (folder) => `Images enregistrees dans : ${folder}`,
+    statusBrandRenamed: (name) => `Marque modifiee : ${name}`,
+    statusBrandDeleted: (name) => `Marque supprimee : ${name}`,
     statusSaved: (path) => `Image enregistree: ${path}`,
     ratioNames: {
       '1:1': 'Carre (1:1)',
@@ -1341,12 +1659,33 @@ const ctx = canvas.getContext('2d');
 const controlsPanel = document.getElementById('controlsPanel');
 const statusText = document.getElementById('statusText');
 const exportDialog = document.getElementById('exportDialog');
+const brandsDialog = document.getElementById('brandsDialog');
+const brandsList = document.getElementById('brandsList');
+const brandsEmptyText = document.getElementById('brandsEmptyText');
+const brandsDialogTitle = document.getElementById('brandsDialogTitle');
+const brandsAddRow = document.getElementById('brandsAddRow');
+const brandsNameInput = document.getElementById('brandsNameInput');
+const btnBrandsAddToggle = document.getElementById('btnBrandsAddToggle');
+const btnBrandsConfirmAdd = document.getElementById('btnBrandsConfirmAdd');
+const btnBrandsClose = document.getElementById('btnBrandsClose');
+const btnHigherResolution = document.getElementById('btnHigherResolution');
+const higherResolutionSelect = document.getElementById('higherResolutionSelect');
 const resolutionGroup = document.getElementById('resolutionGroup');
 const resolutionSelect = document.getElementById('resolutionSelect');
+const exportFolderGroup = document.getElementById('exportFolderGroup');
+const exportFolderPathInput = document.getElementById('exportFolderPath');
+const btnChooseExportFolder = document.getElementById('btnChooseExportFolder');
 const designModeBar = document.getElementById('designModeBar');
 const designModeText = document.getElementById('designModeText');
 const btnDesignExport = document.getElementById('btnDesignExport');
 const btnDesignCancel = document.getElementById('btnDesignCancel');
+let brandLibrary = readBrandLibrary();
+let defaultExportDesignVariants = readSavedDefaultExportVariants();
+let activeBrandName = '';
+let editingBrandName = '';
+let pendingDeleteBrandName = '';
+let appDefaultLayoutSnapshot = null;
+let exportBaseFolder = readExportBaseFolder();
 let logoImageObj = null;
 let chargerImageObj = null;
 let defaultPcImageObj = null;
@@ -1360,7 +1699,6 @@ let isGenerating = false;
 let statusAnimTimer = null;
 let pendingExportExtension = null;
 let exportDesignSession = null;
-const exportDesignVariants = {};
 let logoResizeHandleRect = null;
 let logoBadgeResizeHandleRect = null;
 let logoBadgeBodyRect = null;
@@ -2290,11 +2628,18 @@ function setGeneratingState(active) {
   const pngBtn = document.getElementById('btnGeneratePng');
   const jpgBtn = document.getElementById('btnGenerateJpg');
   const saveLayoutBtn = document.getElementById('btnSaveLayout');
+  const higherResolutionBtn = document.getElementById('btnHigherResolution');
 
   pngBtn.disabled = active;
   jpgBtn.disabled = active;
   if (saveLayoutBtn) {
     saveLayoutBtn.disabled = active;
+  }
+  if (higherResolutionBtn) {
+    higherResolutionBtn.disabled = active;
+  }
+  if (higherResolutionSelect) {
+    higherResolutionSelect.disabled = active;
   }
   if (btnDesignExport) {
     btnDesignExport.disabled = active;
@@ -2317,6 +2662,9 @@ function setGeneratingState(active) {
     stopStatusLoadingAnimation();
     pngBtn.textContent = t().generatePng;
     jpgBtn.textContent = t().generateJpg;
+    if (higherResolutionBtn) {
+      higherResolutionBtn.textContent = t().higherResolution;
+    }
     if (btnDesignExport) {
       btnDesignExport.textContent = exportDesignSession
         ? `${pendingExportExtension?.toUpperCase() || 'EXPORT'} ${exportDesignSession.width} x ${exportDesignSession.height}`
@@ -2340,25 +2688,33 @@ function getExportDialogText() {
   if (state.lang === 'fr') {
     return {
       title: 'Exporter Image',
-      hint: 'Choisissez soit la taille actuelle, soit une resolution wallpaper avant export.',
-      same: 'Utiliser la taille actuelle du design',
-      wallpaper: 'Designer d abord en resolution wallpaper',
-      resolution: 'Resolution Wallpaper',
+      hint: 'Choisissez limage actuelle, limage haute resolution deja enregistree, ou les deux.',
+      current: 'Generer limage actuelle',
+      higher: 'Generer limage haute resolution',
+      both: 'Generer les deux',
+      resolution: 'Haute Resolution',
+      folder: 'Dossier Export Marque',
+      chooseFolder: 'Choisir Dossier',
+      folderHint: 'Les images generees seront enregistrees automatiquement dans le dossier de la marque selectionnee.',
       cancel: 'Annuler',
-      continue: 'Continuer',
-      design: 'Mode resolution {size}: repositionnez les elements, puis exportez.',
+      continue: 'Generer',
+      design: 'Mode haute resolution {size}: repositionnez les elements, puis enregistrez la mise en page ou exportez.',
       export: 'Exporter',
     };
   }
   return {
     title: 'Export Image',
-    hint: 'Choose whether to save the current design or first design at a wallpaper resolution.',
-    same: 'Use current design size',
-    wallpaper: 'Design in a wallpaper resolution first',
-    resolution: 'Wallpaper Resolution',
+    hint: 'Choose the current image, the saved higher-resolution image, or both.',
+    current: 'Generate current image',
+    higher: 'Generate higher-resolution image',
+    both: 'Generate both',
+    resolution: 'Higher Resolution',
+    folder: 'Brand Export Folder',
+    chooseFolder: 'Choose Folder',
+    folderHint: 'Generated images will be saved automatically inside the selected brand folder.',
     cancel: 'Cancel',
-    continue: 'Continue',
-    design: 'Resolution mode {size}: drag elements to their new positions, then export.',
+    continue: 'Generate',
+    design: 'Higher-resolution mode {size}: drag elements to their new positions, then save the layout or export.',
     export: 'Export',
   };
 }
@@ -2367,33 +2723,394 @@ function refreshExportDialogUi() {
   const text = getExportDialogText();
   const titleEl = document.getElementById('exportDialogTitle');
   const hintEl = document.getElementById('exportDialogHint');
-  const sameEl = document.getElementById('exportSameLabel');
-  const wallpaperEl = document.getElementById('exportWallpaperLabel');
+  const currentEl = document.getElementById('exportCurrentLabel');
+  const higherEl = document.getElementById('exportHigherLabel');
+  const bothEl = document.getElementById('exportBothLabel');
   const resolutionEl = document.getElementById('resolutionLabel');
+  const folderEl = document.getElementById('exportFolderLabel');
+  const folderHintEl = document.getElementById('exportFolderHint');
   const cancelEl = document.getElementById('btnExportDialogCancel');
   const continueEl = document.getElementById('btnExportDialogConfirm');
   if (titleEl) titleEl.textContent = text.title;
   if (hintEl) hintEl.textContent = text.hint;
-  if (sameEl) sameEl.textContent = text.same;
-  if (wallpaperEl) wallpaperEl.textContent = text.wallpaper;
+  if (currentEl) currentEl.textContent = text.current;
+  if (higherEl) higherEl.textContent = text.higher;
+  if (bothEl) bothEl.textContent = text.both;
   if (resolutionEl) resolutionEl.textContent = text.resolution;
+  if (folderEl) folderEl.textContent = text.folder;
+  if (folderHintEl) folderHintEl.textContent = text.folderHint;
+  if (btnChooseExportFolder) btnChooseExportFolder.textContent = text.chooseFolder;
   if (cancelEl) cancelEl.textContent = text.cancel;
   if (continueEl) continueEl.textContent = text.continue;
   if (btnDesignCancel) btnDesignCancel.textContent = text.cancel;
   if (btnDesignExport && !exportDesignSession) btnDesignExport.textContent = text.export;
 }
 
-function populateResolutionOptions() {
-  if (!resolutionSelect) {
+function getActiveWorkspaceTab() {
+  if (activeBrandName || brandsDialog?.open) {
+    return 'brands';
+  }
+  return state.generator === 'charger' ? 'charger' : 'diff';
+}
+
+function getBrandBaseLayoutSnapshot() {
+  const savedDefault = readSavedDefaultLayout();
+  if (savedDefault?.state) {
+    return deepCloneJsonValue(savedDefault);
+  }
+  return deepCloneJsonValue(appDefaultLayoutSnapshot);
+}
+
+function renderBrandsDialog() {
+  if (!brandsList || !brandsEmptyText) {
     return;
   }
-  resolutionSelect.innerHTML = '';
-  WALLPAPER_RESOLUTIONS.forEach((item, index) => {
-    const option = document.createElement('option');
-    option.value = item.value;
-    option.textContent = item.label;
-    option.selected = index === 0;
-    resolutionSelect.appendChild(option);
+
+  brandsList.innerHTML = '';
+  brandsEmptyText.classList.toggle('hidden', brandLibrary.length > 0);
+
+  brandLibrary.forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'brand-item-row';
+
+    if (editingBrandName === entry.name) {
+      row.classList.add('editing');
+      const editInput = document.createElement('input');
+      editInput.type = 'text';
+      editInput.value = entry.name;
+      editInput.className = 'brand-edit-input';
+      editInput.placeholder = t().labels.brandsNamePlaceholder;
+
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'brand-action-btn primary';
+      saveBtn.textContent = t().labels.brandsSave;
+      saveBtn.addEventListener('click', () => {
+        saveBrandNameEdit(entry.name, editInput.value);
+      });
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'brand-action-btn';
+      cancelBtn.textContent = t().labels.brandsCancel;
+      cancelBtn.addEventListener('click', () => {
+        editingBrandName = '';
+        renderBrandsDialog();
+      });
+
+      editInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          saveBrandNameEdit(entry.name, editInput.value);
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          editingBrandName = '';
+          renderBrandsDialog();
+        }
+      });
+
+      row.appendChild(editInput);
+      row.appendChild(saveBtn);
+      row.appendChild(cancelBtn);
+      brandsList.appendChild(row);
+      queueMicrotask(() => {
+        editInput.focus();
+        editInput.select();
+      });
+      return;
+    }
+
+    if (pendingDeleteBrandName === entry.name) {
+      row.classList.add('confirming');
+
+      const label = document.createElement('div');
+      label.className = `brand-item-btn brand-item-label ${activeBrandName === entry.name ? 'active' : ''}`;
+      label.textContent = entry.name;
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.type = 'button';
+      confirmBtn.className = 'brand-action-btn brand-action-danger';
+      confirmBtn.textContent = t().labels.brandsConfirmDelete;
+      confirmBtn.addEventListener('click', () => {
+        deleteBrandEntry(entry.name);
+      });
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'brand-action-btn';
+      cancelBtn.textContent = t().labels.brandsCancel;
+      cancelBtn.addEventListener('click', () => {
+        pendingDeleteBrandName = '';
+        renderBrandsDialog();
+      });
+
+      row.appendChild(label);
+      row.appendChild(confirmBtn);
+      row.appendChild(cancelBtn);
+      brandsList.appendChild(row);
+      return;
+    }
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `brand-item-btn ${activeBrandName === entry.name ? 'active' : ''}`;
+    button.textContent = entry.name;
+    button.addEventListener('click', () => {
+      openBrandWorkspace(entry.name);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'brand-item-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'brand-action-btn';
+    editBtn.textContent = t().labels.brandsEdit;
+    editBtn.addEventListener('click', () => {
+      setBrandsAddRowVisible(false);
+      pendingDeleteBrandName = '';
+      editingBrandName = entry.name;
+      renderBrandsDialog();
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'brand-action-btn brand-action-danger';
+    deleteBtn.textContent = t().labels.brandsDelete;
+    deleteBtn.addEventListener('click', () => {
+      editingBrandName = '';
+      pendingDeleteBrandName = entry.name;
+      renderBrandsDialog();
+    });
+
+    actions.appendChild(editBtn);
+    actions.appendChild(deleteBtn);
+    row.appendChild(button);
+    row.appendChild(actions);
+    brandsList.appendChild(row);
+  });
+}
+
+function setBrandsAddRowVisible(visible) {
+  if (!brandsAddRow) {
+    return;
+  }
+  brandsAddRow.classList.toggle('hidden', !visible);
+  if (visible) {
+    editingBrandName = '';
+    pendingDeleteBrandName = '';
+  }
+  if (!visible && brandsNameInput) {
+    brandsNameInput.value = '';
+  }
+  if (visible && brandsNameInput) {
+    brandsNameInput.focus();
+    brandsNameInput.select();
+  }
+}
+
+function openBrandsDialog() {
+  renderBrandsDialog();
+  if (!brandsDialog) {
+    return;
+  }
+  if (!brandsDialog.open) {
+    brandsDialog.showModal();
+  }
+}
+
+function closeBrandsDialog() {
+  if (brandsDialog?.open) {
+    brandsDialog.close();
+  }
+  editingBrandName = '';
+  pendingDeleteBrandName = '';
+  setBrandsAddRowVisible(false);
+}
+
+async function addBrandFromInput() {
+  const name = String(brandsNameInput?.value || '').trim();
+  if (!name) {
+    statusText.textContent = t().statusBrandNameRequired;
+    brandsNameInput?.focus();
+    return;
+  }
+  if (findBrandEntry(name)) {
+    statusText.textContent = t().statusBrandExists(name);
+    brandsNameInput?.focus();
+    brandsNameInput?.select();
+    return;
+  }
+  brandLibrary.push({ name, layout: null });
+  const saved = persistBrandLibrary();
+  if (!saved) {
+    brandLibrary = readBrandLibrary();
+    statusText.textContent = t().statusLayoutSaveFailed;
+    return;
+  }
+  const syncResult = await syncAllBrandFolders();
+  if (!syncResult?.ok) {
+    renderBrandsDialog();
+    statusText.textContent = syncResult?.error || t().statusLayoutSaveFailed;
+    return;
+  }
+  renderBrandsDialog();
+  setBrandsAddRowVisible(false);
+  statusText.textContent = t().statusBrandAdded(name);
+}
+
+async function saveBrandNameEdit(currentName, nextNameRaw) {
+  const nextName = String(nextNameRaw || '').trim();
+  if (!nextName) {
+    statusText.textContent = t().statusBrandNameRequired;
+    renderBrandsDialog();
+    return;
+  }
+
+  const duplicate = brandLibrary.find((entry) => (
+    entry.name.toLowerCase() === nextName.toLowerCase()
+    && entry.name.toLowerCase() !== String(currentName || '').toLowerCase()
+  ));
+  if (duplicate) {
+    statusText.textContent = t().statusBrandExists(nextName);
+    renderBrandsDialog();
+    return;
+  }
+
+  const entry = findBrandEntry(currentName);
+  if (!entry) {
+    editingBrandName = '';
+    renderBrandsDialog();
+    return;
+  }
+
+  entry.name = nextName;
+  if (activeBrandName.toLowerCase() === String(currentName || '').toLowerCase()) {
+    activeBrandName = nextName;
+  }
+
+  const saved = persistBrandLibrary();
+  if (!saved) {
+    brandLibrary = readBrandLibrary();
+    statusText.textContent = t().statusLayoutSaveFailed;
+    return;
+  }
+  const syncResult = await syncAllBrandFolders();
+  if (!syncResult?.ok) {
+    renderBrandsDialog();
+    statusText.textContent = syncResult?.error || t().statusLayoutSaveFailed;
+    return;
+  }
+
+  pendingDeleteBrandName = '';
+  editingBrandName = '';
+  renderBrandsDialog();
+  statusText.textContent = t().statusBrandRenamed(nextName);
+}
+
+function deleteBrandEntry(name) {
+  const normalizedName = String(name || '').trim().toLowerCase();
+  if (!normalizedName) {
+    return;
+  }
+
+  brandLibrary = brandLibrary.filter((entry) => entry.name.toLowerCase() !== normalizedName);
+  if (activeBrandName.toLowerCase() === normalizedName) {
+    activeBrandName = '';
+  }
+  if (editingBrandName.toLowerCase() === normalizedName) {
+    editingBrandName = '';
+  }
+  if (pendingDeleteBrandName.toLowerCase() === normalizedName) {
+    pendingDeleteBrandName = '';
+  }
+
+  const saved = persistBrandLibrary();
+  if (!saved) {
+    brandLibrary = readBrandLibrary();
+    statusText.textContent = t().statusLayoutSaveFailed;
+    return;
+  }
+
+  renderBrandsDialog();
+  setUiLanguage();
+  statusText.textContent = t().statusBrandDeleted(name);
+}
+
+function saveLayoutForActiveBrand() {
+  if (!activeBrandName) {
+    return false;
+  }
+  const existing = findBrandEntry(activeBrandName);
+  const entry = existing || { name: activeBrandName, layout: null, exportVariants: {} };
+
+  if (exportDesignSession?.variantKey) {
+    const variants = entry.exportVariants && typeof entry.exportVariants === 'object'
+      ? entry.exportVariants
+      : {};
+    variants[exportDesignSession.variantKey] = createCurrentDesignSnapshot();
+    entry.exportVariants = variants;
+  } else {
+    entry.layout = createSavedDefaultLayoutSnapshot();
+  }
+
+  if (!existing) {
+    brandLibrary.push(entry);
+  }
+
+  const saved = persistBrandLibrary();
+  if (!saved) {
+    brandLibrary = readBrandLibrary();
+    return false;
+  }
+  renderBrandsDialog();
+  return true;
+}
+
+function openBrandWorkspace(name) {
+  const entry = findBrandEntry(name);
+  if (!entry) {
+    return;
+  }
+
+  const snapshot = entry.layout ? deepCloneJsonValue(entry.layout) : getBrandBaseLayoutSnapshot();
+  if (snapshot?.state) {
+    applySavedDefaultLayout(snapshot);
+  } else {
+    resetLayoutToDefault();
+  }
+
+  state.generator = 'diff';
+  if (!entry.layout) {
+    state.brand = entry.name;
+    state.diffBrandText = entry.name.toUpperCase();
+  }
+  activeBrandName = entry.name;
+  editingBrandName = '';
+  pendingDeleteBrandName = '';
+
+  closeBrandsDialog();
+  setUiLanguage();
+  renderControls();
+  drawPoster();
+  statusText.textContent = t().statusBrandOpened(entry.name);
+}
+
+function populateResolutionOptions() {
+  [resolutionSelect, higherResolutionSelect].forEach((selectEl) => {
+    if (!selectEl) {
+      return;
+    }
+    const currentValue = String(selectEl.value || '');
+    selectEl.innerHTML = '';
+    WALLPAPER_RESOLUTIONS.forEach((item, index) => {
+      const option = document.createElement('option');
+      option.value = item.value;
+      option.textContent = item.label;
+      option.selected = currentValue ? currentValue === item.value : index === 0;
+      selectEl.appendChild(option);
+    });
   });
 }
 
@@ -2401,8 +3118,13 @@ function updateResolutionGroupVisibility() {
   if (!exportDialog) {
     return;
   }
-  const selectedMode = exportDialog.querySelector('input[name="exportMode"]:checked')?.value || 'same';
-  resolutionGroup?.classList.toggle('hidden', selectedMode !== 'wallpaper');
+  const selectedMode = exportDialog.querySelector('input[name="exportMode"]:checked')?.value || 'current';
+  const needsHigherResolution = selectedMode === 'higher' || selectedMode === 'both';
+  resolutionGroup?.classList.toggle('hidden', !needsHigherResolution);
+  exportFolderGroup?.classList.toggle('hidden', !activeBrandName);
+  if (exportFolderPathInput) {
+    exportFolderPathInput.value = exportBaseFolder || '';
+  }
 }
 
 function closeExportDialog() {
@@ -2436,11 +3158,16 @@ function applyDesignSnapshot(snapshot) {
   drawPoster();
 }
 
-function saveCurrentExportDesignVariant() {
+function saveCurrentExportDesignVariant(options = {}) {
   if (!exportDesignSession?.variantKey) {
-    return;
+    return false;
   }
-  exportDesignVariants[exportDesignSession.variantKey] = createCurrentDesignSnapshot();
+  const variants = getCurrentWorkspaceExportVariants();
+  variants[exportDesignSession.variantKey] = createCurrentDesignSnapshot();
+  if (options.persist) {
+    return persistCurrentWorkspaceExportVariants();
+  }
+  return true;
 }
 
 function enterExportDesignMode(extension, width, height) {
@@ -2453,7 +3180,7 @@ function enterExportDesignMode(extension, width, height) {
     variantKey,
     originalSnapshot,
   };
-  const existingVariant = exportDesignVariants[variantKey];
+  const existingVariant = getSavedExportDesignVariant(variantKey);
   if (existingVariant) {
     applyDesignSnapshot(existingVariant);
   } else {
@@ -2476,7 +3203,6 @@ function exitExportDesignMode() {
   if (!exportDesignSession) {
     return;
   }
-  saveCurrentExportDesignVariant();
   const { originalSnapshot } = exportDesignSession;
   exportDesignSession = null;
   pendingExportExtension = null;
@@ -4717,6 +5443,25 @@ function buildConnectivitySection() {
   });
 }
 
+function buildGpuSection() {
+  return buildDiffLineBadgeSection({
+    sectionTitle: t().sections.gpu || 'Graphic Card',
+    line1Key: 'diffGpuLine1',
+    line1Label: t().labels.gpuLine1,
+    line1Hint: t().labels.gpuLine1Hint,
+    line2Key: 'diffGpuLine2',
+    line2Label: t().labels.gpuLine2,
+    line2Hint: t().labels.gpuLine2Hint,
+    line3EnabledKey: 'diffGpuLine3Enabled',
+    line3ToggleLabel: t().labels.gpuLine3Toggle,
+    line3Key: 'diffGpuLine3',
+    line3Label: t().labels.gpuLine3,
+    line3Hint: t().labels.gpuLine3Hint,
+    colorKey: 'diffGpuBadgeColor',
+    defaultColor: '#63b746',
+  });
+}
+
 function buildChargerBadgesSection() {
   const section = document.createElement('section');
   section.className = 'section';
@@ -5009,6 +5754,7 @@ function renderControls() {
     controlsPanel.appendChild(applySectionToggle(buildScreenSection(), 'screen'));
     controlsPanel.appendChild(applySectionToggle(buildConnectivitySection(), 'connectivity'));
     controlsPanel.appendChild(applySectionToggle(buildRamSection(), 'ram'));
+    controlsPanel.appendChild(applySectionToggle(buildGpuSection(), 'gpu'));
     controlsPanel.appendChild(
       applySectionToggle(buildOsSection(), 'os')
     );
@@ -7272,7 +8018,8 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   if (showLogoHolder) {
     const logoBadgeW = 142;
     const logoBadgeH = 104;
-    const bottomBadgesTop = cardY + cardH - 210 + getLayoutOffset('diffBottomBadges').y;
+    // Keep the Generator logo holder independent from the bottom badge row.
+    const bottomBadgesTop = cardY + cardH - 210;
     const logoBaseX = cardX + cardW - logoBadgeW - 34;
     const logoBaseY = Math.min(
       cardY + cardH - logoBadgeH - 28,
@@ -7571,15 +8318,16 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   }
 
   const bottomOffset = getLayoutOffset('diffBottomBadges');
-  const badgeY = cardY + cardH - 210 + bottomOffset.y;
-  const badgeW = 150;
-  const badgeH = 150;
-  const gap = 18;
+  let badgeW = 150;
+  let badgeH = 150;
+  let gap = 18;
+  let badgeY = cardY + cardH - badgeH - 60 + bottomOffset.y;
   const [processorColorA, processorColorB] = resolveDiffBadgeColors(state.diffProcessorBadgeColor, '#1b9fea', '#167ec8');
   const [ramColorA, ramColorB] = resolveDiffBadgeColors(state.diffRamBadgeColor, '#65c3c5', '#3e96a0');
   const [storageColorA, storageColorB] = resolveDiffBadgeColors(state.diffStorageBadgeColor, '#f2c246', '#d8a429');
   const [screenColorA, screenColorB] = resolveDiffBadgeColors(state.diffScreenBadgeColor, '#57b7cf', '#2d95af');
   const [connectivityColorA, connectivityColorB] = resolveDiffBadgeColors(state.diffConnectivityBadgeColor, '#5b86d8', '#3e64b6');
+  const [gpuColorA, gpuColorB] = resolveDiffBadgeColors(state.diffGpuBadgeColor, '#63b746', '#3e8e28');
   const [osColorA, osColorB] = resolveDiffBadgeColors(state.diffOsBadgeColor, '#1d9be4', '#116db7');
   const processorPrimaryText = String(state.processorCore || '').trim();
   const processorSecondaryText = String(state.processorNumber || '').trim();
@@ -7588,6 +8336,7 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   const storageBadgeTitle = String(t().sections.storage || 'Storage');
   const screenBadgeTitle = String(t().sections.screen || 'Screen');
   const connectivityBadgeTitle = String(t().sections.connectivity || 'Connectivity');
+  const gpuBadgeTitle = 'GPU';
   const diffStorageLines = [
     state.diffStorageLine1,
     state.diffStorageLine2,
@@ -7604,6 +8353,11 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
     state.diffConnectivityLine1,
     state.diffConnectivityLine2,
     state.diffConnectivityLine3Enabled ? state.diffConnectivityLine3 : '',
+  ].filter((line) => String(line || '').trim());
+  const diffGpuLines = [
+    state.diffGpuLine1,
+    state.diffGpuLine2,
+    state.diffGpuLine3Enabled ? state.diffGpuLine3 : '',
   ].filter((line) => String(line || '').trim());
   const visibleBadgeDrawers = [];
 
@@ -7684,6 +8438,21 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
     });
   }
 
+  if (state.sectionEnabled.gpu !== false) {
+    visibleBadgeDrawers.push((x) => {
+      drawDiffStorageBadge(
+        x,
+        badgeY,
+        badgeW,
+        badgeH,
+        gpuColorA,
+        gpuColorB,
+        gpuBadgeTitle,
+        diffGpuLines.length > 0 ? diffGpuLines : ['Nvidia', 'GTX 1080']
+      );
+    });
+  }
+
   if (state.sectionEnabled.os !== false) {
     visibleBadgeDrawers.push((x) => {
       const osBadgeText = splitDiffOsBadgeText(state.os || 'Windows');
@@ -7702,6 +8471,16 @@ function drawDiffFormatPoster(cardX, cardY, cardW, cardH, theme) {
   }
 
   if (visibleBadgeDrawers.length > 0) {
+    const availableWidth = Math.max(0, cardW - 72);
+    if ((badgeW * visibleBadgeDrawers.length) + (gap * (visibleBadgeDrawers.length - 1)) > availableWidth) {
+      const minimumGap = 12;
+      badgeW = Math.max(86, Math.floor((availableWidth - (minimumGap * (visibleBadgeDrawers.length - 1))) / visibleBadgeDrawers.length));
+      gap = visibleBadgeDrawers.length > 1
+        ? Math.max(minimumGap, Math.floor((availableWidth - (badgeW * visibleBadgeDrawers.length)) / (visibleBadgeDrawers.length - 1)))
+        : 0;
+    }
+    badgeH = badgeW;
+    badgeY = cardY + cardH - badgeH - 60 + bottomOffset.y;
     const totalBadgeWidth = (badgeW * visibleBadgeDrawers.length) + (gap * (visibleBadgeDrawers.length - 1));
     const startX = cardX + Math.round((cardW - totalBadgeWidth) / 2) + bottomOffset.x;
     visibleBadgeDrawers.forEach((drawBadge, index) => {
@@ -8491,11 +9270,15 @@ function setUiLanguage() {
   document.getElementById('appTitle').textContent = t().appTitle;
   const tabCharger = document.getElementById('tabCharger');
   const tabDiffFormat = document.getElementById('tabDiffFormat');
-  if (tabCharger && tabDiffFormat) {
+  const tabBrands = document.getElementById('tabBrands');
+  const activeTab = getActiveWorkspaceTab();
+  if (tabCharger && tabDiffFormat && tabBrands) {
     tabCharger.textContent = t().labels.generatorCharger;
     tabDiffFormat.textContent = t().labels.generatorDiff;
-    tabCharger.classList.toggle('active', state.generator === 'charger');
-    tabDiffFormat.classList.toggle('active', state.generator === 'diff');
+    tabBrands.textContent = t().labels.generatorBrands;
+    tabCharger.classList.toggle('active', activeTab === 'charger');
+    tabDiffFormat.classList.toggle('active', activeTab === 'diff');
+    tabBrands.classList.toggle('active', activeTab === 'brands');
   }
   if (!isGenerating) {
     document.getElementById('btnGeneratePng').textContent = t().generatePng;
@@ -8504,6 +9287,28 @@ function setUiLanguage() {
     if (saveLayoutBtn) {
       saveLayoutBtn.textContent = t().saveLayout;
     }
+    if (btnHigherResolution) {
+      btnHigherResolution.textContent = t().higherResolution;
+    }
+  }
+  if (brandsDialogTitle) {
+    brandsDialogTitle.textContent = t().labels.generatorBrands;
+  }
+  if (btnBrandsConfirmAdd) {
+    btnBrandsConfirmAdd.textContent = t().labels.brandsAdd;
+  }
+  if (brandsNameInput) {
+    brandsNameInput.placeholder = t().labels.brandsNamePlaceholder;
+  }
+  if (brandsEmptyText) {
+    brandsEmptyText.textContent = t().labels.brandsEmpty;
+  }
+  if (btnBrandsClose) {
+    btnBrandsClose.textContent = t().labels.brandsClose;
+  }
+  if (btnBrandsAddToggle) {
+    btnBrandsAddToggle.title = t().labels.brandsAdd;
+    btnBrandsAddToggle.setAttribute('aria-label', t().labels.brandsAdd);
   }
   if (!isGenerating) {
     statusText.textContent = exportDesignSession
@@ -8524,6 +9329,7 @@ function setUiLanguage() {
     lightBtn.classList.toggle('active', state.uiTheme === 'light');
     darkBtn.classList.toggle('active', state.uiTheme === 'dark');
   }
+  renderBrandsDialog();
 }
 
 function exportImage(extension) {
@@ -8531,12 +9337,78 @@ function exportImage(extension) {
   return canvas.toDataURL(mime, extension === 'jpg' ? 1 : undefined);
 }
 
+async function ensureBrandExportFolderSelected() {
+  if (exportBaseFolder) {
+    return exportBaseFolder;
+  }
+  if (!window.desktopApi?.pickFolder) {
+    statusText.textContent = 'Folder picker unavailable. Restart the app.';
+    return '';
+  }
+  const result = await window.desktopApi.pickFolder();
+  if (result?.canceled || !result?.folderPath) {
+    statusText.textContent = t().statusChooseExportFolder;
+    return '';
+  }
+  exportBaseFolder = result.folderPath;
+  persistExportBaseFolder(exportBaseFolder);
+  const syncResult = await syncAllBrandFolders(exportBaseFolder);
+  if (!syncResult?.ok) {
+    statusText.textContent = syncResult?.error || t().statusLayoutSaveFailed;
+    return '';
+  }
+  if (exportFolderPathInput) {
+    exportFolderPathInput.value = exportBaseFolder;
+  }
+  statusText.textContent = t().statusExportFolderSaved(exportBaseFolder);
+  return exportBaseFolder;
+}
+
+async function saveImageDataUrl(dataUrl, extension, options = {}) {
+  const defaultFileName = String(options.defaultFileName || `${getGeneratedFileNameBase()}.${extension}`);
+
+  if (activeBrandName) {
+    if (!window.desktopApi?.saveImageToBrandFolder) {
+      return { saved: false, error: 'Save API unavailable. Restart the app.' };
+    }
+    const baseFolderPath = options.baseFolderPath || await ensureBrandExportFolderSelected();
+    if (!baseFolderPath) {
+      return { saved: false, error: t().statusChooseExportFolder };
+    }
+    return window.desktopApi.saveImageToBrandFolder({
+      base64Data: dataUrl,
+      extension,
+      baseFolderPath,
+      brandName: activeBrandName,
+      fileName: defaultFileName,
+    });
+  }
+
+  if (!window.desktopApi?.saveImage) {
+    return { saved: false, error: 'Save API unavailable. Restart the app.' };
+  }
+
+  return window.desktopApi.saveImage({
+    base64Data: dataUrl,
+    extension,
+    defaultFileName,
+  });
+}
+
+async function generateImageFromSnapshot(extension, designSnapshot, options = {}) {
+  const originalSnapshot = createCurrentDesignSnapshot();
+  try {
+    applyDesignSnapshot(designSnapshot);
+    drawPoster();
+    const dataUrl = exportImage(extension);
+    return saveImageDataUrl(dataUrl, extension, options);
+  } finally {
+    applyDesignSnapshot(originalSnapshot);
+  }
+}
+
 async function generateImage(extension, options = {}) {
   if (isGenerating) {
-    return;
-  }
-  if (!window.desktopApi?.saveImage) {
-    statusText.textContent = 'Save API unavailable. Restart the app.';
     return;
   }
   setGeneratingState(true);
@@ -8548,10 +9420,8 @@ async function generateImage(extension, options = {}) {
       drawPoster();
     }
     const dataUrl = exportImage(extension);
-    const result = await window.desktopApi.saveImage({
-      base64Data: dataUrl,
-      extension,
-      defaultFileName: `poster-${Date.now()}.${extension}`,
+    const result = await saveImageDataUrl(dataUrl, extension, {
+      defaultFileName: options.defaultFileName || `${options.fileNameBase || getGeneratedFileNameBase(options.resolutionValue, options.fileNameMode)}.${extension}`,
     });
 
     const elapsed = Date.now() - startedAt;
@@ -8570,9 +9440,6 @@ async function generateImage(extension, options = {}) {
       return;
     }
 
-    if (exportDesignSession) {
-      saveCurrentExportDesignVariant();
-    }
     statusText.textContent = t().statusSaved(result.filePath);
     if (options.restoreAfterSave && result.saved) {
       exitExportDesignMode();
@@ -9542,24 +10409,33 @@ if (themeLightBtn && themeDarkBtn) {
 
 const tabCharger = document.getElementById('tabCharger');
 const tabDiffFormat = document.getElementById('tabDiffFormat');
-if (tabCharger && tabDiffFormat) {
+const tabBrands = document.getElementById('tabBrands');
+if (tabCharger && tabDiffFormat && tabBrands) {
   tabCharger.addEventListener('click', () => {
-    if (state.generator === 'charger') {
+    if (state.generator === 'charger' && !activeBrandName) {
       return;
     }
+    activeBrandName = '';
+    closeBrandsDialog();
     state.generator = 'charger';
     setUiLanguage();
     renderControls();
     drawPoster();
   });
   tabDiffFormat.addEventListener('click', () => {
-    if (state.generator === 'diff') {
+    if (state.generator === 'diff' && !activeBrandName) {
       return;
     }
+    activeBrandName = '';
+    closeBrandsDialog();
     state.generator = 'diff';
     setUiLanguage();
     renderControls();
     drawPoster();
+  });
+  tabBrands.addEventListener('click', () => {
+    openBrandsDialog();
+    setUiLanguage();
   });
 }
 
@@ -9569,10 +10445,112 @@ function openExportDialog(extension) {
     return;
   }
   pendingExportExtension = extension;
-  exportDialog.querySelector('input[name="exportMode"][value="same"]').checked = true;
+  exportDialog.querySelector('input[name="exportMode"][value="current"]').checked = true;
+  if (resolutionSelect) {
+    resolutionSelect.value = getSelectedHigherResolutionValue();
+  }
   updateResolutionGroupVisibility();
   refreshExportDialogUi();
   exportDialog.showModal();
+}
+
+async function saveCurrentCanvasImageForExport(extension, options = {}) {
+  drawPoster();
+  const dataUrl = exportImage(extension);
+  return saveImageDataUrl(dataUrl, extension, options);
+}
+
+async function generateExportSelection(extension, mode, resolutionValue) {
+  if (isGenerating) {
+    return;
+  }
+
+  const higherResolutionLabel = getResolutionLabel(resolutionValue);
+  const { width, height } = getResolutionParts(resolutionValue);
+  const higherVariantKey = getExportDesignVariantKey(width, height);
+  const needsHigherLayout = mode === 'higher' || mode === 'both';
+
+  if (needsHigherLayout && !getSavedExportDesignVariant(higherVariantKey)) {
+    statusText.textContent = t().statusHigherResolutionNeeded(higherResolutionLabel);
+    return;
+  }
+
+  let brandFolderPath = '';
+  if (activeBrandName) {
+    brandFolderPath = exportBaseFolder || await ensureBrandExportFolderSelected();
+    if (!brandFolderPath) {
+      return;
+    }
+  }
+
+  setGeneratingState(true);
+  try {
+    const startedAt = Date.now();
+    const batchStamp = formatExportTimestamp(new Date());
+    let finalResult = null;
+
+    if (mode === 'current') {
+      finalResult = await saveCurrentCanvasImageForExport(extension, {
+        defaultFileName: `${batchStamp}.${extension}`,
+        baseFolderPath: brandFolderPath,
+      });
+    } else if (mode === 'higher') {
+      finalResult = await generateImageFromSnapshot(
+        extension,
+        getSavedExportDesignVariant(higherVariantKey),
+        {
+          defaultFileName: `${batchStamp}_${resolutionValue}.${extension}`,
+          baseFolderPath: brandFolderPath,
+        }
+      );
+    } else {
+      const currentResult = await saveCurrentCanvasImageForExport(extension, {
+        defaultFileName: `${batchStamp}_current.${extension}`,
+        baseFolderPath: brandFolderPath,
+      });
+      if (!currentResult?.saved || !currentResult?.filePath) {
+        finalResult = currentResult;
+      } else {
+        finalResult = await generateImageFromSnapshot(
+          extension,
+          getSavedExportDesignVariant(higherVariantKey),
+          {
+            defaultFileName: `${batchStamp}_${resolutionValue}.${extension}`,
+            baseFolderPath: brandFolderPath,
+          }
+        );
+        if (finalResult?.saved && activeBrandName) {
+          finalResult.multipleSaved = true;
+          finalResult.brandFolderPath = finalResult.brandFolderPath || currentResult.brandFolderPath || brandFolderPath;
+        }
+      }
+    }
+
+    const elapsed = Date.now() - startedAt;
+    const minLoaderMs = 520;
+    if (elapsed < minLoaderMs) {
+      await sleep(minLoaderMs - elapsed);
+    }
+
+    if (!finalResult?.saved) {
+      statusText.textContent = finalResult?.error || t().statusCanceled;
+      return;
+    }
+
+    if (!finalResult.filePath) {
+      statusText.textContent = t().statusCanceled;
+      return;
+    }
+
+    statusText.textContent = finalResult.multipleSaved
+      ? t().statusSavedMultiple(finalResult.brandFolderPath || brandFolderPath)
+      : t().statusSaved(finalResult.filePath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown export error.';
+    statusText.textContent = `Export failed: ${message}`;
+  } finally {
+    setGeneratingState(false);
+  }
 }
 
 document.getElementById('btnGeneratePng').addEventListener('click', () => {
@@ -9580,6 +10558,8 @@ document.getElementById('btnGeneratePng').addEventListener('click', () => {
     generateImage('png', {
       width: exportDesignSession.width,
       height: exportDesignSession.height,
+      fileNameMode: 'higher',
+      resolutionValue: `${exportDesignSession.width}x${exportDesignSession.height}`,
       restoreAfterSave: true,
     });
     return;
@@ -9591,6 +10571,8 @@ document.getElementById('btnGenerateJpg').addEventListener('click', () => {
     generateImage('jpg', {
       width: exportDesignSession.width,
       height: exportDesignSession.height,
+      fileNameMode: 'higher',
+      resolutionValue: `${exportDesignSession.width}x${exportDesignSession.height}`,
       restoreAfterSave: true,
     });
     return;
@@ -9598,29 +10580,110 @@ document.getElementById('btnGenerateJpg').addEventListener('click', () => {
   openExportDialog('jpg');
 });
 document.getElementById('btnSaveLayout')?.addEventListener('click', () => {
-  const saved = persistSavedDefaultLayout();
+  if (activeBrandName) {
+    const saved = saveLayoutForActiveBrand();
+    statusText.textContent = saved
+      ? (
+        exportDesignSession
+          ? t().statusHigherResolutionLayoutSaved(getResolutionLabel(`${exportDesignSession.width}x${exportDesignSession.height}`))
+          : t().statusBrandLayoutSaved(activeBrandName)
+      )
+      : (
+        exportDesignSession
+          ? t().statusHigherResolutionLayoutSaveFailed(getResolutionLabel(`${exportDesignSession.width}x${exportDesignSession.height}`))
+          : t().statusBrandLayoutSaveFailed(activeBrandName)
+      );
+    return;
+  }
+  if (exportDesignSession) {
+    const saved = saveCurrentExportDesignVariant({ persist: true });
+    statusText.textContent = saved
+      ? t().statusHigherResolutionLayoutSaved(getResolutionLabel(`${exportDesignSession.width}x${exportDesignSession.height}`))
+      : t().statusHigherResolutionLayoutSaveFailed(getResolutionLabel(`${exportDesignSession.width}x${exportDesignSession.height}`));
+    return;
+  }
+  const saved = persistSavedDefaultLayout() && persistSavedDefaultExportVariants();
   statusText.textContent = saved ? t().statusLayoutSaved : t().statusLayoutSaveFailed;
+});
+
+btnHigherResolution?.addEventListener('click', () => {
+  const resolutionValue = getSelectedHigherResolutionValue();
+  const { width, height } = getResolutionParts(resolutionValue);
+  enterExportDesignMode(pendingExportExtension || 'png', width, height);
+});
+
+higherResolutionSelect?.addEventListener('change', () => {
+  if (resolutionSelect) {
+    resolutionSelect.value = higherResolutionSelect.value;
+  }
+});
+
+resolutionSelect?.addEventListener('change', () => {
+  if (higherResolutionSelect) {
+    higherResolutionSelect.value = resolutionSelect.value;
+  }
+});
+
+btnBrandsAddToggle?.addEventListener('click', () => {
+  const isVisible = !brandsAddRow?.classList.contains('hidden');
+  setBrandsAddRowVisible(!isVisible);
+});
+
+btnBrandsConfirmAdd?.addEventListener('click', () => {
+  addBrandFromInput();
+});
+
+brandsNameInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addBrandFromInput();
+  }
+});
+
+btnBrandsClose?.addEventListener('click', () => {
+  closeBrandsDialog();
+});
+
+brandsDialog?.addEventListener('close', () => {
+  setBrandsAddRowVisible(false);
+  setUiLanguage();
 });
 
 if (exportDialog) {
   exportDialog.querySelectorAll('input[name="exportMode"]').forEach((input) => {
     input.addEventListener('change', updateResolutionGroupVisibility);
   });
+  btnChooseExportFolder?.addEventListener('click', async () => {
+    if (!window.desktopApi?.pickFolder) {
+      statusText.textContent = 'Folder picker unavailable. Restart the app.';
+      return;
+    }
+    const result = await window.desktopApi.pickFolder();
+    if (result?.canceled || !result?.folderPath) {
+      return;
+    }
+    exportBaseFolder = result.folderPath;
+    persistExportBaseFolder(exportBaseFolder);
+    const syncResult = await syncAllBrandFolders(exportBaseFolder);
+    if (!syncResult?.ok) {
+      statusText.textContent = syncResult?.error || t().statusLayoutSaveFailed;
+      return;
+    }
+    if (exportFolderPathInput) {
+      exportFolderPathInput.value = exportBaseFolder;
+    }
+    statusText.textContent = t().statusExportFolderSaved(exportBaseFolder);
+  });
   document.getElementById('btnExportDialogCancel')?.addEventListener('click', () => {
     pendingExportExtension = null;
     closeExportDialog();
   });
-  document.getElementById('btnExportDialogConfirm')?.addEventListener('click', () => {
-    const mode = exportDialog.querySelector('input[name="exportMode"]:checked')?.value || 'same';
+  document.getElementById('btnExportDialogConfirm')?.addEventListener('click', async () => {
+    const mode = exportDialog.querySelector('input[name="exportMode"]:checked')?.value || 'current';
     const extension = pendingExportExtension || 'png';
-    if (mode === 'same') {
-      closeExportDialog();
-      generateImage(extension);
-      return;
-    }
-    const [width, height] = String(resolutionSelect?.value || '1920x1080').split('x').map((value) => Number(value));
+    const selectedResolutionValue = String(resolutionSelect?.value || getSelectedHigherResolutionValue());
     closeExportDialog();
-    enterExportDesignMode(extension, width, height);
+    await generateExportSelection(extension, mode, selectedResolutionValue);
   });
 }
 
@@ -9635,16 +10698,23 @@ btnDesignExport?.addEventListener('click', () => {
   generateImage(pendingExportExtension || 'png', {
     width: exportDesignSession.width,
     height: exportDesignSession.height,
+    fileNameMode: 'higher',
+    resolutionValue: `${exportDesignSession.width}x${exportDesignSession.height}`,
     restoreAfterSave: true,
   });
 });
 
 resetLayoutToDefault();
+appDefaultLayoutSnapshot = createSavedDefaultLayoutSnapshot();
 applySavedDefaultLayout(readSavedDefaultLayout());
 populateResolutionOptions();
 updateCanvasViewport();
 setUiLanguage();
+renderBrandsDialog();
 renderControls();
+if (exportBaseFolder) {
+  syncAllBrandFolders(exportBaseFolder).catch(() => {});
+}
 loadDefaultPcImage();
 loadDefaultLaptopImage();
 loadGeneratorPointsTextImage();

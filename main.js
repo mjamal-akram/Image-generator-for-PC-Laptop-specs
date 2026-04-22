@@ -65,6 +65,32 @@ app.on('window-all-closed', () => {
   }
 });
 
+function sanitizePathSegment(value, fallback = 'Brand') {
+  const cleaned = String(value || '')
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+    .replace(/[. ]+$/g, '')
+    .trim();
+  return cleaned || fallback;
+}
+
+async function writeBase64ImageToPath(filePath, base64Data, extension) {
+  const normalizedExtension = extension === 'jpg' ? 'jpg' : 'png';
+  const mimePrefix = normalizedExtension === 'jpg' ? 'jpeg' : 'png';
+  const prefixPattern = new RegExp(`^data:image\\/${mimePrefix};base64,`);
+  const cleaned = String(base64Data || '').replace(prefixPattern, '');
+
+  if (!cleaned) {
+    return { saved: false, error: 'Image data is empty.' };
+  }
+
+  try {
+    await fsp.writeFile(filePath, cleaned, 'base64');
+    return { saved: true, filePath };
+  } catch {
+    return { saved: false, error: 'Failed to save file.' };
+  }
+}
+
 ipcMain.handle('save-image', async (_event, { base64Data, extension, defaultFileName }) => {
   if (typeof base64Data !== 'string' || !base64Data) {
     return { saved: false, error: 'Invalid image payload.' };
@@ -85,18 +111,110 @@ ipcMain.handle('save-image', async (_event, { base64Data, extension, defaultFile
     return { saved: false };
   }
 
-  const mimePrefix = normalizedExtension === 'jpg' ? 'jpeg' : 'png';
-  const prefixPattern = new RegExp(`^data:image\\/${mimePrefix};base64,`);
-  const cleaned = base64Data.replace(prefixPattern, '');
+  return writeBase64ImageToPath(filePath, base64Data, normalizedExtension);
+});
 
-  if (!cleaned) {
-    return { saved: false, error: 'Image data is empty.' };
+ipcMain.handle('pick-folder', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Choose export folder',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+
+  if (canceled || !Array.isArray(filePaths) || !filePaths[0]) {
+    return { canceled: true };
+  }
+
+  return {
+    canceled: false,
+    folderPath: filePaths[0],
+  };
+});
+
+ipcMain.handle('sync-brand-folders', async (_event, payload) => {
+  const { baseFolderPath, brandNames } = payload || {};
+
+  if (!baseFolderPath || typeof baseFolderPath !== 'string') {
+    return { ok: false, error: 'Invalid export folder.' };
   }
 
   try {
-    await fsp.writeFile(filePath, cleaned, 'base64');
-    return { saved: true, filePath };
+    await fsp.mkdir(baseFolderPath, { recursive: true });
   } catch {
-    return { saved: false, error: 'Failed to save file.' };
+    return { ok: false, error: 'Failed to create export folder.' };
   }
+
+  const uniqueFolderNames = new Set();
+  const createdFolders = [];
+
+  (Array.isArray(brandNames) ? brandNames : []).forEach((brandName) => {
+    const safeFolderName = sanitizePathSegment(brandName, 'General');
+    if (!safeFolderName || uniqueFolderNames.has(safeFolderName)) {
+      return;
+    }
+    uniqueFolderNames.add(safeFolderName);
+    createdFolders.push(path.join(baseFolderPath, safeFolderName));
+  });
+
+  try {
+    await Promise.all(
+      createdFolders.map((folderPath) => fsp.mkdir(folderPath, { recursive: true }))
+    );
+    return {
+      ok: true,
+      createdFolders,
+    };
+  } catch {
+    return { ok: false, error: 'Failed to create one or more brand folders.' };
+  }
+});
+
+ipcMain.handle('save-image-to-brand-folder', async (_event, payload) => {
+  const {
+    base64Data,
+    extension,
+    baseFolderPath,
+    brandName,
+    fileName,
+  } = payload || {};
+
+  if (typeof base64Data !== 'string' || !base64Data) {
+    return { saved: false, error: 'Invalid image payload.' };
+  }
+
+  if (!baseFolderPath || typeof baseFolderPath !== 'string') {
+    return { saved: false, error: 'Invalid export folder.' };
+  }
+
+  const normalizedExtension = extension === 'jpg' ? 'jpg' : 'png';
+  const safeBrandFolder = sanitizePathSegment(brandName, 'General');
+  const safeFileNameBase = sanitizePathSegment(
+    path.parse(String(fileName || `poster.${normalizedExtension}`)).name,
+    'poster'
+  );
+  const brandFolderPath = path.join(baseFolderPath, safeBrandFolder);
+
+  try {
+    await fsp.mkdir(brandFolderPath, { recursive: true });
+  } catch {
+    return { saved: false, error: 'Failed to create brand folder.' };
+  }
+
+  let candidatePath = path.join(brandFolderPath, `${safeFileNameBase}.${normalizedExtension}`);
+  let suffix = 2;
+
+  while (fs.existsSync(candidatePath)) {
+    candidatePath = path.join(brandFolderPath, `${safeFileNameBase}-${suffix}.${normalizedExtension}`);
+    suffix += 1;
+  }
+
+  const result = await writeBase64ImageToPath(candidatePath, base64Data, normalizedExtension);
+  if (!result.saved) {
+    return result;
+  }
+
+  return {
+    saved: true,
+    filePath: result.filePath,
+    brandFolderPath,
+  };
 });
